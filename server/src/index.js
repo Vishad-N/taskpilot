@@ -86,12 +86,8 @@ app.use((error, _req, res, _next) => {
   });
 });
 
-const isDirectRun = process.argv[1] === __filename;
-
-if (isDirectRun) {
-  app.listen(PORT, () => {
-    console.log(`TaskPilot backend running on http://localhost:${PORT}`);
-  });
-}
+app.listen(PORT, () => {
+  console.log(`TaskPilot backend running on http://localhost:${PORT}`);
+});
 
 export default app;
