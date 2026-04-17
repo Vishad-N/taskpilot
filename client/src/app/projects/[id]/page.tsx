@@ -2,21 +2,23 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { 
-  ArrowLeft, 
-  Plus, 
-  MessageSquare, 
-  Layout, 
-  Settings, 
+import {
+  ArrowLeft,
+  Plus,
+  MessageSquare,
+  Layout,
+  Settings,
   ShieldCheck,
   Target,
   Pencil,
-  Trash2
+  Trash2,
+  Sun,
+  Send
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import api from "@/services/api";
 import { useMe } from "@/hooks/useMe";
-import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/components/ui/ToastProvider";
 import SoftLoader from "@/components/ui/SoftLoader";
 
@@ -35,6 +37,14 @@ type Task = {
   priority?: string;
   assignedTo?: { _id: string; name: string };
   createdBy?: { _id: string; name: string } | null;
+};
+
+type DailyUpdate = {
+  _id: string;
+  content: string;
+  date: string;
+  createdAt: string;
+  userId?: { _id: string; name: string; email: string; role: string };
 };
 
 const canCreateTasks = (role?: string) => role === "admin" || role === "superadmin" || role === "team";
@@ -85,6 +95,9 @@ export default function ProjectWorkspacePage() {
   const [editDescription, setEditDescription] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [dailyUpdates, setDailyUpdates] = useState<DailyUpdate[]>([]);
+  const [newDailyUpdateContent, setNewDailyUpdateContent] = useState("");
+  const [submittingDailyUpdate, setSubmittingDailyUpdate] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -93,12 +106,14 @@ export default function ProjectWorkspacePage() {
       setLoading(true);
       setError(null);
       try {
-        const [projRes, tasksRes] = await Promise.all([
+        const [projRes, tasksRes, updatesRes] = await Promise.all([
           api.get(`/projects/${id}`),
-          api.get(`/tasks/project/${id}`)
+          api.get(`/tasks/project/${id}`),
+          api.get(`/daily-updates/project/${id}`).catch(() => ({ data: { updates: [] } }))
         ]);
         setProject(projRes.data.project);
         setTasks(tasksRes.data.tasks ?? []);
+        setDailyUpdates((updatesRes.data.updates ?? []) as DailyUpdate[]);
       } catch (err: unknown) {
         setError(getErrorMessage(err, "Failed to load project workspace"));
       } finally {
@@ -109,6 +124,36 @@ export default function ProjectWorkspacePage() {
 
   const canCreateTask = canCreateTasks(user?.role);
   const canManageTasks = user?.role === "admin" || user?.role === "superadmin";
+
+  const postProjectDailyUpdate = async () => {
+    if (!newDailyUpdateContent.trim() || !id) return;
+    try {
+      setSubmittingDailyUpdate(true);
+      await api.post("/daily-updates", {
+        content: newDailyUpdateContent,
+        projectId: id,
+        timezoneOffsetMinutes: new Date().getTimezoneOffset()
+      });
+      setNewDailyUpdateContent("");
+      const res = await api.get(`/daily-updates/project/${id}`);
+      setDailyUpdates((res.data.updates ?? []) as DailyUpdate[]);
+      showToast({ title: "Update posted", description: "Your daily update was submitted.", variant: "success" });
+    } catch {
+      showToast({ title: "Failed to post update", description: "Could not submit your daily update.", variant: "error" });
+    } finally {
+      setSubmittingDailyUpdate(false);
+    }
+  };
+
+  const deleteProjectDailyUpdate = async (updateId: string) => {
+    try {
+      await api.delete(`/daily-updates/${updateId}`);
+      setDailyUpdates((current) => current.filter((u) => u._id !== updateId));
+      showToast({ title: "Update deleted", description: "The daily update was removed.", variant: "success" });
+    } catch {
+      showToast({ title: "Delete failed", description: "Could not remove that update.", variant: "error" });
+    }
+  };
 
   const openEditTask = (task: Task) => {
     setEditingTask(task);
@@ -344,14 +389,14 @@ export default function ProjectWorkspacePage() {
             </div>
 
             {tasks.length === 0 && (
-              <motion.div 
+              <motion.div
                 variants={item}
                 className="glass-card border-dashed border-white/10 p-20 rounded-[3rem] text-center grayscale opacity-40"
               >
                 <Target size={48} className="mx-auto mb-6 text-gray-600" />
                 <p className="text-sm font-black text-gray-500 uppercase tracking-[0.4em] mb-6">Zero Operational Tasks Detected</p>
                 {canCreateTask && (
-                   <button 
+                   <button
                     className="px-8 py-3 bg-white/5 hover:bg-white/10 rounded-2xl text-[10px] font-black text-indigo-400 uppercase tracking-widest transition-all"
                     onClick={() => router.push(`/tasks?projectId=${id}&create=true`)}
                    >
@@ -360,6 +405,96 @@ export default function ProjectWorkspacePage() {
                 )}
               </motion.div>
             )}
+          </div>
+
+          {/* Daily Updates Column */}
+          <div className="space-y-6">
+            <motion.div variants={item} className="glass-card rounded-[2.5rem] p-8 border border-white/5">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Team Progress</p>
+                  <h2 className="mt-2 text-lg font-black text-white italic tracking-tighter uppercase flex items-center gap-3">
+                    <Sun className="text-amber-400" size={18} />
+                    Daily Updates
+                  </h2>
+                </div>
+                <span className="text-[10px] px-3 py-1 bg-white/5 rounded-full font-black text-gray-500 uppercase tracking-widest">
+                  {dailyUpdates.length}
+                </span>
+              </div>
+
+              {(user?.role === "admin" || user?.role === "superadmin" || user?.role === "team") && (
+                <div className="bg-white/2 border border-white/10 rounded-3xl p-4 focus-within:border-amber-500/50 transition-all shadow-inner mb-8">
+                  <textarea
+                    value={newDailyUpdateContent}
+                    onChange={(event) => setNewDailyUpdateContent(event.target.value)}
+                    placeholder="WHAT DID YOU ACCOMPLISH TODAY..."
+                    className="w-full bg-transparent px-4 py-3 outline-none text-xs font-black text-white min-h-[90px] resize-none uppercase tracking-widest placeholder:opacity-30"
+                  />
+                  <div className="flex justify-between items-center p-2 gap-3 border-t border-white/5 mt-2">
+                    <p className="text-[9px] text-gray-600 font-black uppercase tracking-widest">
+                      {new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void postProjectDailyUpdate()}
+                      disabled={submittingDailyUpdate || !newDailyUpdateContent.trim()}
+                      className="bg-amber-600 hover:bg-amber-500 px-5 py-2.5 rounded-2xl text-[9px] font-black text-white transition-all active:scale-95 uppercase tracking-[0.2em] flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {submittingDailyUpdate ? "Posting..." : "Post"}
+                      <Send size={11} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-6">
+                <AnimatePresence mode="popLayout">
+                  {dailyUpdates.map((update, idx) => (
+                    <motion.div
+                      key={update._id}
+                      layout
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.04 }}
+                      className="flex gap-4"
+                    >
+                      <div className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center font-black text-base bg-amber-500/15 text-amber-300 border border-amber-500/20">
+                        {update.userId?.name?.charAt(0).toUpperCase() || "U"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <div className="flex flex-wrap items-center gap-2 min-w-0">
+                            <span className="text-[11px] font-black text-gray-200 uppercase tracking-wider truncate">{update.userId?.name}</span>
+                            <span className="text-[8px] font-black px-1.5 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded uppercase tracking-wide shrink-0">
+                              {update.date}
+                            </span>
+                          </div>
+                          {(user?._id === update.userId?._id || user?.role === "admin" || user?.role === "superadmin") && (
+                            <button
+                              type="button"
+                              onClick={() => void deleteProjectDailyUpdate(update._id)}
+                              className="shrink-0 p-1 rounded text-gray-600 hover:text-red-400 transition"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wide leading-relaxed whitespace-pre-wrap">
+                          {update.content}
+                        </p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                {dailyUpdates.length === 0 && (
+                  <div className="py-10 text-center grayscale opacity-30">
+                    <Sun size={28} className="mx-auto mb-3 text-gray-500" />
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">No Updates Yet</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
           </div>
 
         </motion.div>

@@ -23,7 +23,9 @@ import {
   ArrowRight,
   GitBranch,
   Plus,
-  X
+  X,
+  Sun,
+  Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMe } from "@/hooks/useMe";
@@ -61,6 +63,14 @@ type Comment = {
   _id: string;
   content: string;
   isInternal: boolean;
+  createdAt: string;
+  userId?: { _id: string; name: string; email: string; role: string };
+};
+
+type DailyUpdate = {
+  _id: string;
+  content: string;
+  date: string;
   createdAt: string;
   userId?: { _id: string; name: string; email: string; role: string };
 };
@@ -251,18 +261,22 @@ export default function TaskDetailsPage() {
   });
   const [savingMeetingNote, setSavingMeetingNote] = useState(false);
   const [editingMeetingNoteIndex, setEditingMeetingNoteIndex] = useState<number | null>(null);
+  const [dailyUpdates, setDailyUpdates] = useState<DailyUpdate[]>([]);
+  const [newDailyUpdateContent, setNewDailyUpdateContent] = useState("");
+  const [submittingDailyUpdate, setSubmittingDailyUpdate] = useState(false);
 
   const fetchTaskData = useCallback(async () => {
     try {
       setLoading(true);
-      const [taskResult, commentsResult, workResult] = await Promise.allSettled([
+      const [taskResult, commentsResult, workResult, dailyUpdatesResult] = await Promise.allSettled([
         api.get(`/tasks/${id}`),
         api.get(`/comments/task/${id}`),
         api.get(`/tasks/${id}/work-summary`, {
           params: {
             timezoneOffsetMinutes: new Date().getTimezoneOffset()
           }
-        })
+        }),
+        api.get(`/daily-updates/task/${id}`)
       ]);
 
       if (taskResult.status !== "fulfilled") {
@@ -279,9 +293,15 @@ export default function TaskDetailsPage() {
           ? workResult.value
           : { data: { summary: null } };
 
+      const dailyUpdatesRes =
+        dailyUpdatesResult.status === "fulfilled"
+          ? dailyUpdatesResult.value
+          : { data: { updates: [] } };
+
       setTask(taskRes.data.task);
       setSubtasks(taskRes.data.subtasks ?? []);
       setComments(commentsRes.data.comments ?? []);
+      setDailyUpdates((dailyUpdatesRes.data.updates ?? []) as DailyUpdate[]);
       setWorkSummary((workRes.data.summary ?? null) as WorkSummary | null);
       setWorkSummaryFetchedAt(Date.now());
       const loadedTask = taskRes.data.task as Task;
@@ -606,6 +626,37 @@ export default function TaskDetailsPage() {
     }
   };
 
+  const postDailyUpdate = async () => {
+    if (!newDailyUpdateContent.trim() || !task?.projectId?._id) return;
+    try {
+      setSubmittingDailyUpdate(true);
+      await api.post("/daily-updates", {
+        content: newDailyUpdateContent,
+        taskId: id,
+        projectId: task.projectId._id,
+        timezoneOffsetMinutes: new Date().getTimezoneOffset()
+      });
+      setNewDailyUpdateContent("");
+      const res = await api.get(`/daily-updates/task/${id}`);
+      setDailyUpdates((res.data.updates ?? []) as DailyUpdate[]);
+      showToast({ title: "Update posted", description: "Your daily update was submitted.", variant: "success" });
+    } catch {
+      showToast({ title: "Failed to post update", description: "Could not submit your daily update.", variant: "error" });
+    } finally {
+      setSubmittingDailyUpdate(false);
+    }
+  };
+
+  const deleteTaskDailyUpdate = async (updateId: string) => {
+    try {
+      await api.delete(`/daily-updates/${updateId}`);
+      setDailyUpdates((current) => current.filter((u) => u._id !== updateId));
+      showToast({ title: "Update deleted", description: "The daily update was removed.", variant: "success" });
+    } catch {
+      showToast({ title: "Delete failed", description: "Could not remove that update.", variant: "error" });
+    }
+  };
+
   const syncWorkSummary = (summary: WorkSummary | null) => {
     setWorkSummary(summary);
     setWorkSummaryFetchedAt(Date.now());
@@ -691,6 +742,7 @@ export default function TaskDetailsPage() {
 
     if (canTrackWork(user?.role)) {
       tabs.push({ id: "time-record", label: "Time Record" });
+      tabs.push({ id: "daily-update", label: "Daily Update" });
     }
 
     tabs.push({ id: "metadata", label: "Task Metadata" });
@@ -1206,6 +1258,105 @@ export default function TaskDetailsPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </motion.div>
+            )}
+
+            {activeSection === "daily-update" && (
+            <motion.div
+              variants={item}
+              className="glass-card rounded-[2.5rem] p-10 border border-white/5"
+            >
+              <div className="flex items-center justify-between mb-10">
+                <div>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">Team Progress Log</p>
+                  <h2 className="mt-2 text-xl font-black text-white italic tracking-tighter uppercase flex items-center gap-4">
+                    <Sun className="text-amber-400" size={20} />
+                    Daily Updates
+                  </h2>
+                </div>
+                <span className="text-[10px] px-3 py-1 bg-white/5 rounded-full font-black text-gray-500 uppercase tracking-widest">
+                  {dailyUpdates.length} entries
+                </span>
+              </div>
+
+              <div className="bg-white/2 border border-white/10 rounded-4xl p-4 focus-within:border-amber-500/50 transition-all shadow-inner mb-10">
+                <textarea
+                  value={newDailyUpdateContent}
+                  onChange={(event) => setNewDailyUpdateContent(event.target.value)}
+                  placeholder="WHAT DID YOU ACCOMPLISH TODAY..."
+                  className="w-full bg-transparent px-6 py-4 outline-none text-xs font-black text-white min-h-[100px] resize-none uppercase tracking-widest placeholder:opacity-30"
+                />
+                <div className="flex flex-col sm:flex-row justify-between items-center p-3 gap-4 border-t border-white/5 mt-2">
+                  <p className="text-[9px] text-gray-600 font-black uppercase tracking-widest ml-4">Daily progress log / {new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</p>
+                  <button
+                    type="button"
+                    onClick={() => void postDailyUpdate()}
+                    disabled={submittingDailyUpdate || !newDailyUpdateContent.trim()}
+                    className="flex-1 sm:flex-none bg-amber-600 hover:bg-amber-500 px-8 py-3 rounded-2xl text-[9px] font-black text-white transition-all shadow-lg shadow-amber-600/20 active:scale-95 uppercase tracking-[0.2em] flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {submittingDailyUpdate ? "Posting..." : "Post Update"}
+                    <Send size={12} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-8">
+                <AnimatePresence mode="popLayout">
+                  {dailyUpdates.map((update, idx) => (
+                    <motion.div
+                      key={update._id}
+                      layout
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.04 }}
+                      className="flex gap-6"
+                    >
+                      <div className="w-12 h-12 rounded-2xl shrink-0 flex items-center justify-center font-black text-lg bg-amber-500/15 text-amber-300 border border-amber-500/20">
+                        {update.userId?.name?.charAt(0).toUpperCase() || "U"}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between mb-2 gap-4">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="text-xs font-black text-gray-200 uppercase tracking-wider">{update.userId?.name}</span>
+                            <span className="text-[9px] font-black px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-md uppercase tracking-[0.2em]">
+                              {update.date}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[9px] font-black text-gray-600 uppercase tracking-widest">
+                              {new Date(update.createdAt).toLocaleString(undefined, {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                month: "short",
+                                day: "numeric"
+                              })}
+                            </span>
+                            {(user?._id === update.userId?._id || user?.role === "admin" || user?.role === "superadmin") && (
+                              <button
+                                type="button"
+                                onClick={() => void deleteTaskDailyUpdate(update._id)}
+                                className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 transition"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-400 font-bold uppercase tracking-wider leading-relaxed whitespace-pre-wrap">
+                          {update.content}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                {dailyUpdates.length === 0 && (
+                  <div className="py-12 text-center grayscale opacity-30">
+                    <Sun size={32} className="mx-auto mb-4 text-gray-500" />
+                    <p className="text-xs font-black text-gray-500 uppercase tracking-[0.3em]">No Updates Yet</p>
+                    <p className="mt-2 text-sm font-semibold text-gray-600">Be the first to post what you accomplished today.</p>
+                  </div>
+                )}
               </div>
             </motion.div>
             )}

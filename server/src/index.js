@@ -24,6 +24,7 @@ import activityRoutes from "./routes/activity.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import userRoutes from "./routes/users.js";
 import notificationRoutes from "./routes/notification.js";
+import dailyUpdateRoutes from "./routes/dailyUpdates.js";
 
 const PORT = process.env.PORT || 8000;
 
@@ -74,6 +75,7 @@ app.use("/comments", commentRoutes);
 app.use("/users", userRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/activity", activityRoutes);
+app.use("/daily-updates", dailyUpdateRoutes);
 
 app.get("/", (_req, res) => {
   res.json({ status: "ok", version: "1.0.0" });
