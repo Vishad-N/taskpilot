@@ -236,7 +236,7 @@ export default function ProjectWorkspacePage() {
               onClick={() => router.push(`/tasks?projectId=${id}&create=true`)}
             >
               <Plus size={18} />
-              Deploy Vector
+              Deploy Task
             </button>
           )}
           <button className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-gray-500 hover:text-white transition-all">
@@ -287,7 +287,7 @@ export default function ProjectWorkspacePage() {
                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{task.status}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-black px-2.5 py-1 rounded-lg bg-white/5 text-indigo-400 border border-white/5 uppercase tracking-tighter">{task.priority || "P2"}</span>
+                      <span className="text-[9px] font-black px-2.5 py-1 rounded-lg bg-white/5 text-indigo-400 border border-white/5 uppercase tracking-tighter">{task.priority || "Normal"}</span>
                       {canManageTasks && (
                         <div className="flex items-center gap-1" onClick={(event) => event.stopPropagation()}>
                           <button
@@ -349,13 +349,13 @@ export default function ProjectWorkspacePage() {
                 className="glass-card border-dashed border-white/10 p-20 rounded-[3rem] text-center grayscale opacity-40"
               >
                 <Target size={48} className="mx-auto mb-6 text-gray-600" />
-                <p className="text-sm font-black text-gray-500 uppercase tracking-[0.4em] mb-6">Zero Operational Vectors Detected</p>
+                <p className="text-sm font-black text-gray-500 uppercase tracking-[0.4em] mb-6">Zero Operational Tasks Detected</p>
                 {canCreateTask && (
                    <button 
                     className="px-8 py-3 bg-white/5 hover:bg-white/10 rounded-2xl text-[10px] font-black text-indigo-400 uppercase tracking-widest transition-all"
                     onClick={() => router.push(`/tasks?projectId=${id}&create=true`)}
                    >
-                    Initialize First Vector
+                    Initialize First Task
                    </button>
                 )}
               </motion.div>

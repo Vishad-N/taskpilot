@@ -97,7 +97,7 @@ export default function TasksPage() {
     description: "",
     projectId: "",
     assignedToIds: [] as string[],
-    priority: "P2",
+    priority: "Normal",
     startDate: "",
     endDate: "",
     deadlineDate: "",
@@ -183,7 +183,7 @@ export default function TasksPage() {
         description: "",
         projectId: "",
         assignedToIds: [],
-        priority: "P2",
+        priority: "Normal",
         startDate: "",
         endDate: "",
         deadlineDate: "",
@@ -415,7 +415,7 @@ export default function TasksPage() {
               className="flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-emerald-600 px-6 py-3 text-xs font-black uppercase tracking-widest text-white transition shadow-lg shadow-emerald-600/20 hover:bg-emerald-500 sm:self-auto"
             >
               <Plus size={18} />
-              New Vector
+              New Task
             </button>
           )}
         </div>
@@ -572,13 +572,13 @@ export default function TasksPage() {
 
                             <div className="flex items-center gap-2">
                               <span className={`text-[8px] font-black px-2 py-0.5 rounded-lg border tracking-tighter ${
-                                task.priority === "P0"
+                                task.priority === "Urgent"
                                   ? "bg-red-500/5 text-red-500 border-red-500/20"
-                                  : task.priority === "P1"
+                                  : task.priority === "High"
                                     ? "bg-amber-500/5 text-amber-500 border-amber-500/20"
                                     : "bg-emerald-500/5 text-emerald-400 border-emerald-500/20"
                               }`}>
-                                {task.priority || "P2"}
+                                {task.priority || "Normal"}
                               </span>
                             </div>
                           </div>
@@ -724,11 +724,11 @@ export default function TasksPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className={`text-[8px] font-black px-2.5 py-1 rounded-lg border tracking-tighter uppercase ${task.priority === "P0" ? "bg-red-500/5 text-red-500 border-red-500/20" :
-                          task.priority === "P1" ? "bg-amber-500/5 text-amber-500 border-amber-500/20" :
+                      <span className={`text-[8px] font-black px-2.5 py-1 rounded-lg border tracking-tighter uppercase ${task.priority === "Urgent" ? "bg-red-500/5 text-red-500 border-red-500/20" :
+                          task.priority === "High" ? "bg-amber-500/5 text-amber-500 border-amber-500/20" :
                             "bg-emerald-500/5 text-emerald-400 border-emerald-500/20"
                         }`}>
-                        {task.priority || "P2"}
+                        {task.priority || "Normal"}
                       </span>
                       <div className="h-3 w-px bg-white/5" />
                       <div className="flex items-center gap-1.5 text-gray-600">
@@ -764,7 +764,7 @@ export default function TasksPage() {
             >
               <Tag size={40} className="mx-auto mb-4 text-gray-600" />
               <p className="text-sm font-black text-gray-500 uppercase tracking-[0.3em]">
-                {searchQuery.trim() ? "No matching tasks or sub-tasks found" : "Zero Operational Vectors Detected"}
+                {searchQuery.trim() ? "No matching tasks or sub-tasks found" : "Zero Operational Tasks Detected"}
               </p>
             </motion.div>
           )}
@@ -809,7 +809,7 @@ export default function TasksPage() {
                       required
                       value={formData.title}
                       onChange={e => setFormData({ ...formData, title: e.target.value })}
-                      placeholder="VECTOR_DESIGNATION"
+                      placeholder="TASK_DESIGNATION"
                       className="w-full bg-white/5 border border-white/5 rounded-3xl px-8 py-5 text-sm font-black text-white focus:border-emerald-500/50 transition-all outline-none uppercase tracking-widest"
                     />
                     <div className="absolute right-6 top-1/2 -translate-y-1/2 opacity-20 group-focus-within:opacity-100 transition-opacity">
@@ -908,9 +908,9 @@ export default function TasksPage() {
                       onChange={e => setFormData({ ...formData, priority: e.target.value })}
                       className="w-full bg-white/5 border border-white/5 rounded-2xl px-6 py-4 text-xs font-black text-white focus:border-emerald-500/50 outline-none transition uppercase tracking-tighter appearance-none"
                     >
-                      <option value="P0" className="bg-[#0B0F14] text-red-500">P0 - CRITICAL_PATH</option>
-                      <option value="P1" className="bg-[#0B0F14] text-amber-500">P1 - HIGH_VELOCITY</option>
-                      <option value="P2" className="bg-[#0B0F14] text-emerald-400">P2 - STANDARD_OP</option>
+                      <option value="Urgent" className="bg-[#0B0F14] text-red-500">Urgent</option>
+                      <option value="High" className="bg-[#0B0F14] text-amber-500">High</option>
+                      <option value="Normal" className="bg-[#0B0F14] text-emerald-400">Normal</option>
                     </select>
                   </div>
                   <div className="space-y-3">
@@ -973,7 +973,7 @@ export default function TasksPage() {
                       disabled={creating}
                       className="flex-1 md:flex-none px-12 py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-xl shadow-emerald-600/20 active:scale-95"
                     >
-                      {creating ? "Launching..." : "Deploy Vector"}
+                      {creating ? "Launching..." : "Deploy Task"}
                     </button>
                   </div>
                 </div>

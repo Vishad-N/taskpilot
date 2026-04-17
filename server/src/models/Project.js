@@ -38,8 +38,8 @@ const projectSchema = new mongoose.Schema(
 
     priority: {
       type: String,
-      enum: ["P0", "P1", "P2"],
-      default: "P2"
+      enum: ["Urgent", "High", "Normal"],
+      default: "Normal"
     },
 
     dueDate: {

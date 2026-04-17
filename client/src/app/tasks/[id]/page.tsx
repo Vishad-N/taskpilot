@@ -230,7 +230,7 @@ export default function TaskDetailsPage() {
     title: "",
     description: "",
     assignedToIds: [] as string[],
-    priority: "P2",
+    priority: "Normal",
     startDate: "",
     endDate: "",
     deadlineDate: "",
@@ -238,7 +238,7 @@ export default function TaskDetailsPage() {
   });
   const [metadataForm, setMetadataForm] = useState({
     assignedToIds: [] as string[],
-    priority: "P2",
+    priority: "Normal",
     startDate: "",
     endDate: "",
     deadlineDate: "",
@@ -292,7 +292,7 @@ export default function TaskDetailsPage() {
             : loadedTask.assignedTo?._id
               ? [loadedTask.assignedTo._id]
               : [],
-        priority: loadedTask.priority ?? "P2",
+        priority: loadedTask.priority ?? "Normal",
         startDate: formatDateInput(loadedTask.startDate),
         endDate: formatDateInput(loadedTask.endDate),
         deadlineDate: formatDateInput(loadedTask.deadlineDate || loadedTask.dueDate),
@@ -430,7 +430,7 @@ export default function TaskDetailsPage() {
         title: "",
         description: "",
         assignedToIds: [],
-        priority: "P2",
+        priority: "Normal",
         startDate: "",
         endDate: "",
         deadlineDate: "",
@@ -693,7 +693,7 @@ export default function TaskDetailsPage() {
       tabs.push({ id: "time-record", label: "Time Record" });
     }
 
-    tabs.push({ id: "metadata", label: "Vector Metadata" });
+    tabs.push({ id: "metadata", label: "Task Metadata" });
     tabs.push({ id: "meeting-status", label: "Meeting Status" });
 
     return tabs;
@@ -901,7 +901,7 @@ export default function TaskDetailsPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.24em] text-gray-500">
-                              {subtask.priority || "P2"}
+                              {subtask.priority || "Normal"}
                             </span>
                             <span className="rounded-full border border-white/8 bg-white/[0.04] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.24em] text-gray-500">
                               {subtask.clientVisible ? "Client visible" : "Internal"}
@@ -1019,9 +1019,9 @@ export default function TaskDetailsPage() {
                         onChange={(event) => setSubtaskForm((current) => ({ ...current, priority: event.target.value }))}
                         className="w-full rounded-2xl border border-[var(--card-border)] bg-[var(--surface-2)] px-4 py-3 text-sm outline-none transition focus:border-emerald-500/40 focus:bg-white/[0.04]"
                       >
-                        <option value="P0">P0 - Critical</option>
-                        <option value="P1">P1 - High</option>
-                        <option value="P2">P2 - Standard</option>
+                        <option value="Urgent">Urgent</option>
+                        <option value="High">High</option>
+                        <option value="Normal">Normal</option>
                       </select>
                     </label>
 
@@ -1409,7 +1409,7 @@ export default function TaskDetailsPage() {
               variants={item}
               className="glass-card rounded-[2.5rem] p-8 border border-white/5"
             >
-              <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em] mb-8 ml-2">Vector Metadata</h3>
+              <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em] mb-8 ml-2">Task Metadata</h3>
               <form onSubmit={saveMetadata} className="space-y-6">
                 <div className="flex items-center justify-between p-4 bg-white/2 rounded-2xl border border-white/5">
                   <div className="flex items-center gap-4 text-gray-500">
@@ -1489,18 +1489,18 @@ export default function TaskDetailsPage() {
                       onChange={(event) => setMetadataForm((current) => ({ ...current, priority: event.target.value }))}
                       className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-gray-200 outline-none"
                     >
-                      <option value="P0">P0</option>
-                      <option value="P1">P1</option>
-                      <option value="P2">P2</option>
+                      <option value="Urgent">Urgent</option>
+                      <option value="High">High</option>
+                      <option value="Normal">Normal</option>
                     </select>
                   ) : (
-                    <span className={`text-[9px] font-black px-3 py-1 rounded-lg border tracking-tighter uppercase italic ${task.priority === "P0"
+                    <span className={`text-[9px] font-black px-3 py-1 rounded-lg border tracking-tighter uppercase italic ${task.priority === "Urgent"
                       ? "bg-red-500/10 text-red-500 border-red-500/30"
-                      : task.priority === "P1"
+                      : task.priority === "High"
                         ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
                         : "bg-indigo-500/10 text-indigo-400 border-indigo-500/30"
                     }`}>
-                      {task.priority || "DEFAULT_P2"}
+                      {task.priority || "Normal"}
                     </span>
                   )}
                 </div>

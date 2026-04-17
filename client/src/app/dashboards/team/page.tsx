@@ -17,7 +17,7 @@ type Task = {
   status: "pending" | "inprogress" | "review" | "completed" | "blocked";
   projectId?: { _id: string; name: string } | string;
   dueDate?: string;
-  priority?: "P0" | "P1" | "P2";
+  priority?: "Urgent" | "High" | "Normal";
   createdBy?: { _id: string; name: string } | null;
 };
 
@@ -241,13 +241,13 @@ export default function TeamDashboard() {
 
                           <div className="flex items-center gap-2">
                             <span className={`text-[8px] font-black px-2 py-0.5 rounded-lg border tracking-tighter ${
-                              task.priority === "P0"
+                              task.priority === "Urgent"
                                 ? "bg-red-500/5 text-red-500 border-red-500/20"
-                                : task.priority === "P1"
+                                : task.priority === "High"
                                   ? "bg-amber-500/5 text-amber-500 border-amber-500/20"
                                   : "bg-emerald-500/5 text-emerald-400 border-emerald-500/20"
                             }`}>
-                              {task.priority || "P2"}
+                              {task.priority || "Normal"}
                             </span>
                           </div>
                         </div>
