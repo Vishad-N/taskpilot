@@ -3,6 +3,7 @@ import {
   createDailyUpdate,
   getTaskDailyUpdates,
   getProjectDailyUpdates,
+  getOrganizationDailyUpdates,
   deleteDailyUpdate
 } from "../controllers/dailyUpdateController.js";
 
@@ -16,6 +17,13 @@ router.post(
   authMiddleware,
   allowRoles("superadmin", "admin", "team"),
   createDailyUpdate
+);
+
+router.get(
+  "/organization",
+  authMiddleware,
+  allowRoles("superadmin", "admin", "team"),
+  getOrganizationDailyUpdates
 );
 
 router.get(

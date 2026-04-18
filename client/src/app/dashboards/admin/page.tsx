@@ -14,7 +14,9 @@ import {
   ArrowRight,
   Activity,
   FolderKanban,
-  Sparkles
+  Sparkles,
+  MessageSquare,
+  Trash2
 } from "lucide-react";
 import { motion, Variants } from "framer-motion";
 import SoftLoader from "@/components/ui/SoftLoader";
@@ -27,15 +29,36 @@ type DashboardStats = {
   pendingTasks: number;
 };
 
+type DailyUpdate = {
+  _id: string;
+  content: string;
+  date: string;
+  createdAt: string;
+  userId: { _id: string; name: string; email: string; role: string };
+  projectId: { _id: string; name: string } | null;
+  taskId: { _id: string; title: string } | null;
+};
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [updates, setUpdates] = useState<DailyUpdate[]>([]);
+  const [updatesLoading, setUpdatesLoading] = useState(true);
 
   useEffect(() => {
     api.get("/dashboard")
       .then((res) => setStats(res.data))
       .finally(() => setLoading(false));
+
+    api.get("/daily-updates/organization?limit=20")
+      .then((res) => setUpdates(res.data.updates || []))
+      .finally(() => setUpdatesLoading(false));
   }, []);
+
+  const handleDeleteUpdate = async (id: string) => {
+    await api.delete(`/daily-updates/${id}`);
+    setUpdates((prev) => prev.filter((u) => u._id !== id));
+  };
 
   const container: Variants = {
     hidden: { opacity: 0 },
@@ -205,6 +228,62 @@ export default function AdminDashboard() {
               );
             })}
           </div>
+
+          <motion.div variants={item} className="glass-card p-8 md:p-10 rounded-[2.25rem] border border-white/5 overflow-hidden relative">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <MessageSquare size={16} className="text-emerald-400" />
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-500">Team updates</p>
+                </div>
+                <h2 className="text-2xl font-extrabold text-white tracking-tight mb-1">Daily Updates</h2>
+                <p className="text-gray-500 text-sm">Recent updates posted by your team across all projects.</p>
+              </div>
+            </div>
+
+            {updatesLoading ? (
+              <p className="text-sm text-gray-500">Loading updates...</p>
+            ) : updates.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <MessageSquare size={32} className="text-gray-700 mb-3" />
+                <p className="text-gray-500 text-sm">No updates posted yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-4 max-h-[480px] overflow-y-auto pr-1">
+                {updates.map((update) => (
+                  <div key={update._id} className="p-5 bg-white/[0.02] border border-white/5 rounded-[1.5rem] group">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <span className="text-sm font-semibold text-white">{update.userId?.name}</span>
+                          <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-600 bg-white/5 px-2 py-0.5 rounded-full">{update.userId?.role}</span>
+                          {update.projectId && (
+                            <Link href={`/projects/${update.projectId._id}`} className="text-[10px] font-semibold uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full hover:bg-emerald-500/20 transition-colors">
+                              {update.projectId.name}
+                            </Link>
+                          )}
+                          {update.taskId && (
+                            <Link href={`/tasks/${update.taskId._id}`} className="text-[10px] font-semibold uppercase tracking-widest text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full hover:bg-blue-500/20 transition-colors">
+                              {update.taskId.title}
+                            </Link>
+                          )}
+                          <span className="text-xs text-gray-600">{update.date}</span>
+                        </div>
+                        <p className="text-sm text-gray-300 leading-relaxed">{update.content}</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteUpdate(update._id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-600 hover:text-red-400 flex-shrink-0 mt-1"
+                        title="Delete update"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
 
           <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-8">
             <motion.div variants={item} className="glass-card p-8 md:p-10 rounded-[2.25rem] border border-white/5 overflow-hidden relative">

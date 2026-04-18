@@ -91,6 +91,24 @@ export const getProjectDailyUpdates = async (req, res) => {
   }
 };
 
+export const getOrganizationDailyUpdates = async (req, res) => {
+  try {
+    const organizationId = req.user.organizationId;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const updates = await DailyUpdate.find({ organizationId })
+      .populate("userId", "name email role")
+      .populate("projectId", "name")
+      .populate("taskId", "title")
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    res.json({ updates });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to get organization daily updates", error: error.message });
+  }
+};
+
 export const deleteDailyUpdate = async (req, res) => {
   try {
     const update = await DailyUpdate.findById(req.params.id);

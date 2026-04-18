@@ -693,6 +693,17 @@ export const updateTaskStatus = async (req, res) => {
       return res.status(404).json({ message: "Task not found" });
     }
 
+    const isAdmin = req.user.role === "admin" || req.user.role === "superadmin";
+    const assignedIds = [
+      ...(task.assignedTo ? [String(task.assignedTo?._id || task.assignedTo)] : []),
+      ...((task.assignedToUsers || []).map((u) => String(u?._id || u)))
+    ];
+    const isAssigned = assignedIds.includes(String(req.user._id));
+
+    if (!isAdmin && !isAssigned) {
+      return res.status(403).json({ message: "Only the assigned user or an admin can move this task." });
+    }
+
     const oldStatus = task.status;
     const previousEndDate = task.endDate;
 

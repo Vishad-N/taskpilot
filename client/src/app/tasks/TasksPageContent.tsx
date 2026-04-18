@@ -207,6 +207,16 @@ export default function TasksPage() {
   };
 
   const canManageTasks = user?.role === "admin" || user?.role === "superadmin";
+
+  const canMoveTask = (task: Task) => {
+    if (!user) return false;
+    if (user.role === "admin" || user.role === "superadmin") return true;
+    const assignedIds = [
+      ...(task.assignedTo ? [task.assignedTo._id] : []),
+      ...((task.assignedToUsers ?? []).map((u) => u._id))
+    ];
+    return assignedIds.includes(user._id);
+  };
   const usesBoardLayout = user?.role !== "client";
 
   const grouped = useMemo(() => {
@@ -583,28 +593,34 @@ export default function TasksPage() {
                             </div>
                           </div>
 
-                          <div className="mt-4 flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
-                            {boardStatuses.map((option) => {
-                              const active = option === task.status;
-                              return (
-                                <button
-                                  key={option}
-                                  type="button"
-                                  disabled={!!updating[task._id] || active}
-                                  onClick={() => updateStatus(task._id, option)}
-                                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${
-                                    active
-                                      ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300 shadow-lg shadow-emerald-500/10"
-                                      : "border-white/8 bg-white/[0.03] text-gray-500 hover:border-white/15 hover:bg-white/[0.08] hover:text-white"
-                                  } disabled:cursor-not-allowed disabled:opacity-60`}
-                                  title={`Move to ${formatStatusLabel(option)}`}
-                                >
-                                  <span className={`h-2 w-2 rounded-full ${statusColors[option]}`} />
-                                  {formatStatusLabel(option)}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          {canMoveTask(task) ? (
+                            <div className="mt-4 flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
+                              {boardStatuses.map((option) => {
+                                const active = option === task.status;
+                                return (
+                                  <button
+                                    key={option}
+                                    type="button"
+                                    disabled={!!updating[task._id] || active}
+                                    onClick={() => updateStatus(task._id, option)}
+                                    className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${
+                                      active
+                                        ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300 shadow-lg shadow-emerald-500/10"
+                                        : "border-white/8 bg-white/[0.03] text-gray-500 hover:border-white/15 hover:bg-white/[0.08] hover:text-white"
+                                    } disabled:cursor-not-allowed disabled:opacity-60`}
+                                    title={`Move to ${formatStatusLabel(option)}`}
+                                  >
+                                    <span className={`h-2 w-2 rounded-full ${statusColors[option]}`} />
+                                    {formatStatusLabel(option)}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="mt-4 px-3 py-2 rounded-full border border-white/5 bg-white/[0.02] text-[9px] font-black uppercase tracking-widest text-gray-600 w-fit">
+                              View only
+                            </div>
+                          )}
                         </>
                       )}
 

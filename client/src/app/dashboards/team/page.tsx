@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import api from "@/services/api";
 import Link from "next/link";
-import { Clock, Filter, MoreHorizontal } from "lucide-react";
+import { Clock, Filter, MoreHorizontal, MessageSquare, Trash2 } from "lucide-react";
+import { useMe } from "@/hooks/useMe";
 import { motion, AnimatePresence } from "framer-motion";
 import SoftLoader from "@/components/ui/SoftLoader";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -19,6 +20,18 @@ type Task = {
   dueDate?: string;
   priority?: "Urgent" | "High" | "Normal";
   createdBy?: { _id: string; name: string } | null;
+  assignedTo?: { _id: string; name: string } | null;
+  assignedToUsers?: Array<{ _id: string; name: string }>;
+};
+
+type DailyUpdate = {
+  _id: string;
+  content: string;
+  date: string;
+  createdAt: string;
+  userId: { _id: string; name: string; email: string; role: string };
+  projectId: { _id: string; name: string } | null;
+  taskId: { _id: string; title: string } | null;
 };
 
 const statusOptions: Task["status"][] = [
@@ -44,11 +57,14 @@ const formatStatusLabel = (status: Task["status"]) => {
 
 export default function TeamDashboard() {
   const router = useRouter();
+  const { user } = useMe();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<Record<string, boolean>>({});
   const [organizationName, setOrganizationName] = useState<string>("");
+  const [updates, setUpdates] = useState<DailyUpdate[]>([]);
+  const [updatesLoading, setUpdatesLoading] = useState(true);
   const { showToast } = useToast();
 
   const grouped = useMemo(() => {
@@ -57,6 +73,16 @@ export default function TeamDashboard() {
     for (const t of tasks) (map[t.status] ??= []).push(t);
     return map;
   }, [tasks]);
+
+  const canMoveTask = (task: Task) => {
+    if (!user) return false;
+    if (user.role === "admin" || user.role === "superadmin") return true;
+    const assignedIds = [
+      ...(task.assignedTo ? [task.assignedTo._id] : []),
+      ...((task.assignedToUsers ?? []).map((u) => u._id))
+    ];
+    return assignedIds.includes(user._id);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -129,6 +155,9 @@ export default function TeamDashboard() {
 
   useEffect(() => {
     load();
+    api.get("/daily-updates/organization?limit=20")
+      .then((res) => setUpdates(res.data.updates || []))
+      .finally(() => setUpdatesLoading(false));
   }, []);
 
   return (
@@ -252,28 +281,34 @@ export default function TeamDashboard() {
                           </div>
                         </div>
 
-                        <div className="mt-4 flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
-                          {statusOptions.map((option) => {
-                            const active = option === task.status;
-                            return (
-                              <button
-                                key={option}
-                                type="button"
-                                disabled={!!updating[task._id] || active}
-                                onClick={() => updateStatus(task._id, option)}
-                                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${
-                                  active
-                                    ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300 shadow-lg shadow-emerald-500/10"
-                                    : "border-white/8 bg-white/[0.03] text-gray-500 hover:border-white/15 hover:bg-white/[0.08] hover:text-white"
-                                } disabled:cursor-not-allowed disabled:opacity-60`}
-                                title={`Move to ${formatStatusLabel(option)}`}
-                              >
-                                <span className={`h-2 w-2 rounded-full ${statusColors[option]}`} />
-                                {formatStatusLabel(option)}
-                              </button>
-                            );
-                          })}
-                        </div>
+                        {canMoveTask(task) ? (
+                          <div className="mt-4 flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
+                            {statusOptions.map((option) => {
+                              const active = option === task.status;
+                              return (
+                                <button
+                                  key={option}
+                                  type="button"
+                                  disabled={!!updating[task._id] || active}
+                                  onClick={() => updateStatus(task._id, option)}
+                                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${
+                                    active
+                                      ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300 shadow-lg shadow-emerald-500/10"
+                                      : "border-white/8 bg-white/[0.03] text-gray-500 hover:border-white/15 hover:bg-white/[0.08] hover:text-white"
+                                  } disabled:cursor-not-allowed disabled:opacity-60`}
+                                  title={`Move to ${formatStatusLabel(option)}`}
+                                >
+                                  <span className={`h-2 w-2 rounded-full ${statusColors[option]}`} />
+                                  {formatStatusLabel(option)}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="mt-4 px-3 py-2 rounded-full border border-white/5 bg-white/[0.02] text-[9px] font-black uppercase tracking-widest text-gray-600 w-fit">
+                            View only
+                          </div>
+                        )}
                       </motion.div>
                     ))}
                   </AnimatePresence>
@@ -293,6 +328,52 @@ export default function TeamDashboard() {
           </div>
         )}
       </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
+        className="mt-12 glass-card p-8 md:p-10 rounded-[2.25rem] border border-white/5 overflow-hidden"
+      >
+        <div className="flex items-center gap-3 mb-2">
+          <MessageSquare size={16} className="text-emerald-400" />
+          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-500">Team updates</p>
+        </div>
+        <h2 className="text-2xl font-extrabold text-white tracking-tight mb-1">Daily Updates</h2>
+        <p className="text-gray-500 text-sm mb-8">Recent updates posted by your team across all projects.</p>
+
+        {updatesLoading ? (
+          <p className="text-sm text-gray-500">Loading updates...</p>
+        ) : updates.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <MessageSquare size={32} className="text-gray-700 mb-3" />
+            <p className="text-gray-500 text-sm">No updates posted yet.</p>
+          </div>
+        ) : (
+          <div className="space-y-4 max-h-[480px] overflow-y-auto pr-1">
+            {updates.map((update) => (
+              <div key={update._id} className="p-5 bg-white/[0.02] border border-white/5 rounded-[1.5rem]">
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="text-sm font-semibold text-white">{update.userId?.name}</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-600 bg-white/5 px-2 py-0.5 rounded-full">{update.userId?.role}</span>
+                  {update.projectId && (
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                      {update.projectId.name}
+                    </span>
+                  )}
+                  {update.taskId && (
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">
+                      {update.taskId.title}
+                    </span>
+                  )}
+                  <span className="text-xs text-gray-600">{update.date}</span>
+                </div>
+                <p className="text-sm text-gray-300 leading-relaxed">{update.content}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </motion.div>
     </DashboardLayout>
   );
 }
