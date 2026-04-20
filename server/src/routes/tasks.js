@@ -2,6 +2,7 @@ import express from "express";
 import {
   createTask,
   getMyTasks,
+  getTasksByMember,
   updateTaskStatus,
   getTaskById,
   updateTask,
@@ -37,6 +38,13 @@ router.get(
   authMiddleware,
   allowRoles("superadmin", "admin", "team"),
   getMyTasks
+);
+
+router.get(
+  "/by-member/:userId",
+  authMiddleware,
+  allowRoles("superadmin", "admin"),
+  getTasksByMember
 );
 
 

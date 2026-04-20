@@ -86,6 +86,9 @@ export default function TasksPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [myTasksOnly, setMyTasksOnly] = useState(false);
+  const [memberFilter, setMemberFilter] = useState<string>("");
+  const [teamMembers, setTeamMembers] = useState<AssignableUser[]>([]);
 
   // Creation state
   const [showCreate, setShowCreate] = useState(false);
@@ -126,6 +129,12 @@ export default function TasksPage() {
         });
       } else if (user?.role === "client") {
         res = await api.get("/tasks/client-view");
+      } else if (myTasksOnly) {
+        res = await api.get("/tasks/my-tasks");
+      } else if (memberFilter) {
+        res = await api.get(`/tasks/by-member/${memberFilter}`, {
+          params: status === "all" ? {} : { status }
+        });
       } else {
         res = await api.get("/tasks/org-tasks", {
           params: status === "all" ? {} : { status }
@@ -133,7 +142,7 @@ export default function TasksPage() {
       }
 
       let all = res.data.tasks ?? [];
-      if (status !== "all" && user?.role === "client") {
+      if (status !== "all" && (user?.role === "client" || myTasksOnly)) {
         all = all.filter((t: Task) => t.status === status);
       }
       setTasks(all);
@@ -142,7 +151,7 @@ export default function TasksPage() {
     } finally {
       setLoading(false);
     }
-  }, [status, user?.role]);
+  }, [status, user?.role, myTasksOnly, memberFilter]);
 
   useEffect(() => {
     if (user) {
@@ -169,6 +178,12 @@ export default function TasksPage() {
       api.get("/users/assignable").then((res) => setTeam((res.data.users ?? []) as AssignableUser[]));
     }
   }, [showCreate, user?.role]);
+
+  useEffect(() => {
+    if (user?.role === "admin" || user?.role === "superadmin") {
+      api.get("/users/assignable").then((res) => setTeamMembers((res.data.users ?? []) as AssignableUser[]));
+    }
+  }, [user?.role]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -429,6 +444,49 @@ export default function TasksPage() {
             </button>
           )}
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        {user?.role !== "client" && (
+          <button
+            type="button"
+            onClick={() => { setMyTasksOnly((v) => !v); setMemberFilter(""); }}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border transition-all duration-200 ${
+              myTasksOnly
+                ? "bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-600/20"
+                : "bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10"
+            }`}
+          >
+            <User size={12} />
+            My Tasks
+          </button>
+        )}
+
+        {(user?.role === "admin" || user?.role === "superadmin") && (
+          <select
+            value={memberFilter}
+            onChange={(e) => { setMemberFilter(e.target.value); setMyTasksOnly(false); }}
+            className="bg-white/5 border border-white/5 rounded-2xl px-5 py-2.5 text-[10px] font-black text-gray-400 uppercase tracking-widest outline-none hover:bg-white/10 transition-all appearance-none cursor-pointer"
+          >
+            <option value="" className="bg-[#0B0F14] normal-case font-normal tracking-normal">All Members</option>
+            {teamMembers.map((m) => (
+              <option key={m._id} value={m._id} className="bg-[#0B0F14] normal-case font-normal tracking-normal">
+                {m.name}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {(myTasksOnly || memberFilter) && (
+          <button
+            type="button"
+            onClick={() => { setMyTasksOnly(false); setMemberFilter(""); }}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-white/5 bg-white/5 text-gray-500 hover:text-white hover:bg-white/10 transition-all"
+          >
+            <X size={12} />
+            Clear
+          </button>
+        )}
       </div>
 
       {searchResultLabel && (

@@ -63,7 +63,7 @@ export default function ActivityPage() {
 
   const formatAction = (action: string) => {
     if (action.includes("moved task to")) return "Status Update";
-    if (action.includes("created a task")) return "Creation";
+    if (action.includes("created task") || action.includes("created a task")) return "Creation";
     if (action.includes("edited task") || action.includes("edited project")) return "Edit";
     if (action.includes("deleted task") || action.includes("deleted project")) return "Deletion";
     if (action.includes("added a comment")) return "Discussion";

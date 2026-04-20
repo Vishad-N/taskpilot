@@ -633,7 +633,7 @@ export const createTask = async (req, res) => {
 
     await ActivityLog.create({
       userId: req.user._id,
-      action: parentTask ? `created sub-task "${task.title}"` : "created a task",
+      action: parentTask ? `created sub-task "${task.title}"` : `created task "${task.title}"`,
       entityType: "task",
       entityId: task._id,
       projectId: task.projectId,
@@ -670,6 +670,35 @@ export const getMyTasks = async (req, res) => {
         { assignedToUsers: req.user._id }
       ]
     }))
+      .populate("createdBy", "name email")
+      .populate("projectId", "name");
+
+    res.json({ tasks });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+};
+
+export const getTasksByMember = async (req, res) => {
+  try {
+    const organizationId = await requireActiveOrganizationId(req);
+    const { userId } = req.params;
+    const { status } = req.query;
+
+    const query = {
+      organizationId,
+      $or: [
+        { assignedTo: userId },
+        { assignedToUsers: userId }
+      ]
+    };
+
+    if (status) {
+      query.status = status;
+    }
+
+    const tasks = await populateAssignees(Task.find(query))
+      .sort({ createdAt: -1 })
       .populate("createdBy", "name email")
       .populate("projectId", "name");
 
@@ -756,7 +785,7 @@ export const updateTaskStatus = async (req, res) => {
 
 export const getOrganizationTasks = async (req, res) => {
   try {
-    const { page = 1, limit = 10, status } = req.query;
+    const { status } = req.query;
     const organizationId = await requireActiveOrganizationId(req);
 
     const query = {
@@ -772,8 +801,7 @@ export const getOrganizationTasks = async (req, res) => {
     }
 
     const tasks = await populateAssignees(Task.find(query))
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit, 10))
+      .sort({ createdAt: -1 })
       .populate("createdBy", "name email")
       .populate("projectId", "name");
 
@@ -1310,6 +1338,22 @@ export const updateTask = async (req, res) => {
     if (nextMeetingNotes) task.meetingNotes = nextMeetingNotes;
 
     await task.save();
+
+    if (nextAssigneeIds) {
+      const prevIds = (before.assignedToUsers || []).map((id) => String(id));
+      const newlyAssignedIds = nextAssigneeIds.filter((id) => !prevIds.includes(String(id)));
+      if (newlyAssignedIds.length > 0) {
+        await Notification.insertMany(
+          newlyAssignedIds.map((userId) => ({
+            userId,
+            message: `You have been assigned a task: ${task.title}`,
+            entityType: "task",
+            entityId: task._id,
+            organizationId
+          }))
+        );
+      }
+    }
 
     await ActivityLog.create({
       userId: req.user._id,
