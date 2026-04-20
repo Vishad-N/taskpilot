@@ -213,8 +213,12 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
       ? [{ name: "Projects", href: "/projects", icon: Briefcase }]
       : []),
     { name: "Tasks", href: "/tasks", icon: CheckSquare },
+    ...(user?.role === "team"
+      ? [{ name: "My Tasks", href: "/my-tasks", icon: CheckSquare }]
+      : []),
     ...(user?.role === "admin" || user?.role === "superadmin"
       ? [
+          { name: "My Tasks", href: "/my-tasks", icon: CheckSquare },
           { name: "Team", href: "/users/team", icon: Users },
           { name: "Activity", href: "/activity", icon: Pulse },
         ]

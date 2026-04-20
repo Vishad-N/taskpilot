@@ -166,6 +166,14 @@ export default function TasksPage() {
   }, [load, searchQuery, user]);
 
   useEffect(() => {
+    const memberParam = searchParams.get("member") ?? "";
+    if (memberParam && memberParam !== memberFilter) {
+      setMemberFilter(memberParam);
+      setMyTasksOnly(false);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
     const nextSearch = searchParams.get("q") ?? "";
     if (nextSearch !== searchQuery) {
       setSearchQuery(nextSearch);
