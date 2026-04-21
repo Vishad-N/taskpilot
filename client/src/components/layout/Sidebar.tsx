@@ -27,6 +27,7 @@ type SidebarProps = {
 
 type NotificationRecord = {
   isRead?: boolean;
+  message?: string;
 };
 
 type ActiveWorkSession = {
@@ -67,7 +68,10 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
           const notifications = (res.data.notifications ??
             []) as NotificationRecord[];
           const count = notifications.filter(
-            (notification) => !notification.isRead,
+            (notification) =>
+              !notification.isRead &&
+              !notification.message?.includes("moved to pending") &&
+              !notification.message?.includes("moved to inprogress")
           ).length;
           setUnreadCount(count);
         })
@@ -212,7 +216,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
     ...(user?.role !== "client"
       ? [{ name: "Projects", href: "/projects", icon: Briefcase }]
       : []),
-    { name: "Tasks", href: "/tasks", icon: CheckSquare },
+    { name: "Team Tasks", href: "/tasks", icon: CheckSquare },
     ...(user?.role === "team"
       ? [{ name: "My Tasks", href: "/my-tasks", icon: CheckSquare }]
       : []),

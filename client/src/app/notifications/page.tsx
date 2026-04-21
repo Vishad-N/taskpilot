@@ -49,7 +49,11 @@ export default function NotificationsPage() {
     setError(null);
     try {
       const res = await api.get("/notifications");
-      setItems(res.data.notifications ?? []);
+      const allNotifications: Notification[] = res.data.notifications ?? [];
+      const filtered = allNotifications.filter(
+        (n) => !n.message?.includes("moved to pending") && !n.message?.includes("moved to inprogress")
+      );
+      setItems(filtered);
     } catch (e: unknown) {
       setError(getErrorMessage(e, "Failed to load notifications"));
     } finally {
