@@ -1,6 +1,7 @@
 import Task from "../models/Task.js";
 import ActivityLog from "../models/ActivityLog.js";
 import NotificationService from "../services/notificationService.js";
+import Notification from "../models/Notification.js";
 import Project from "../models/Project.js";
 import User from "../models/User.js";
 import Comment from "../models/Comment.js";
@@ -813,6 +814,17 @@ export const getOrganizationTasks = async (req, res) => {
       query.clientVisible = true;
     }
 
+    if (req.user.role === "team") {
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { assignedTo: req.user._id },
+          { assignedToUsers: req.user._id },
+          { createdBy: req.user._id }
+        ]
+      });
+    }
+
     const tasks = await populateAssignees(Task.find(query))
       .sort({ createdAt: -1 })
       .populate("createdBy", "name email")
@@ -863,6 +875,17 @@ export const searchTasks = async (req, res) => {
       query.clientVisible = true;
     }
 
+    if (req.user.role === "team") {
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { assignedTo: req.user._id },
+          { assignedToUsers: req.user._id },
+          { createdBy: req.user._id }
+        ]
+      });
+    }
+
     const tasks = await populateAssignees(Task.find(query))
       .populate("createdBy", "name email")
       .populate("projectId", "name")
@@ -887,6 +910,17 @@ export const getProjectTasks = async (req, res) => {
 
     if (req.user.role === "client") {
       query.clientVisible = true;
+    }
+
+    if (req.user.role === "team") {
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { assignedTo: req.user._id },
+          { assignedToUsers: req.user._id },
+          { createdBy: req.user._id }
+        ]
+      });
     }
 
     const tasks = await populateAssignees(Task.find(query))
@@ -935,6 +969,16 @@ export const getTaskById = async (req, res) => {
       return res.status(403).json({ message: "Not allowed" });
     }
 
+    if (req.user.role === "team") {
+      const isAssigned = String(task.assignedTo?._id || task.assignedTo) === String(req.user._id) || 
+                         (task.assignedToUsers || []).some(u => String(u._id || u) === String(req.user._id));
+      const isCreator = String(task.createdBy?._id || task.createdBy) === String(req.user._id);
+      
+      if (!isAssigned && !isCreator) {
+        return res.status(403).json({ message: "Not allowed" });
+      }
+    }
+
     const subtasksQuery = {
       parentTaskId: task._id,
       organizationId
@@ -942,6 +986,14 @@ export const getTaskById = async (req, res) => {
 
     if (req.user.role === "client") {
       subtasksQuery.clientVisible = true;
+    }
+
+    if (req.user.role === "team") {
+      subtasksQuery.$or = [
+        { assignedTo: req.user._id },
+        { assignedToUsers: req.user._id },
+        { createdBy: req.user._id }
+      ];
     }
 
     const subtasks = await populateAssignees(Task.find(subtasksQuery))

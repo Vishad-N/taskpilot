@@ -143,4 +143,47 @@ export const initCronJobs = () => {
       console.error("[Cron] Error in 6:55 PM clock-out reminder:", error);
     }
   });
+  // Every 30 minutes check for incomplete tasks for clocked-in team members
+  cron.schedule("*/30 * * * *", async () => {
+    console.log("[Cron] Running 30-minute incomplete task reminder...");
+    try {
+      const today = getTodayDateString();
+      const teamMembers = await User.find({ isActive: true, role: "team" });
+      
+      for (const user of teamMembers) {
+        // Check if user is currently clocked in
+        const record = await Attendance.findOne({ userId: user._id, attendanceDate: today });
+        if (record && record.clockIn && !record.clockOut) {
+          // User is clocked in. Find their incomplete tasks.
+          const incompleteTasks = await Task.find({
+            status: { $ne: "completed" },
+            organizationId: user.organizationId,
+            $or: [
+              { assignedTo: user._id },
+              { assignedToUsers: user._id }
+            ]
+          }).select("title");
+
+          if (incompleteTasks.length > 0) {
+            let message = "";
+            if (incompleteTasks.length === 1) {
+              message = `Your task "${incompleteTasks[0].title}" is incomplete.`;
+            } else {
+              message = `You have ${incompleteTasks.length} incomplete tasks pending, including "${incompleteTasks[0].title}".`;
+            }
+
+            await NotificationService.createNotification({
+              userId: user._id,
+              organizationId: user.organizationId,
+              title: "Incomplete Tasks Reminder",
+              message: message,
+              type: "system"
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[Cron] Error in 30-minute incomplete task reminder:", error);
+    }
+  });
 };

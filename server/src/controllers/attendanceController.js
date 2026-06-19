@@ -380,6 +380,8 @@ export const updateCorrectionRequest = async (req, res) => {
         
         if (status === "Half Day") {
           attendance.status = "Half Day";
+        } else if (status === "Approved") {
+          attendance.status = "Present";
         }
 
         await attendance.save();
