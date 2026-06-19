@@ -18,13 +18,28 @@ const notificationSchema = new mongoose.Schema(
       default: false
     },
 
-    entityType: {
+    title: {
       type: String,
-      enum: ["task", "project"],
     },
 
-    entityId: {
-      type: mongoose.Schema.Types.ObjectId
+    type: {
+      type: String,
+      enum: [
+        "task_assigned",
+        "task_updated",
+        "task_completed",
+        "task_due",
+        "task_overdue",
+        "attendance_correction_approved",
+        "attendance_correction_rejected",
+        "system"
+      ],
+      default: "system"
+    },
+
+    taskId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Task"
     },
 
     organizationId: {

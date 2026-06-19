@@ -10,11 +10,12 @@ import { useToast } from "@/components/ui/ToastProvider";
 
 type Notification = {
   _id: string;
+  title?: string;
   message: string;
+  type?: string;
   isRead: boolean;
   createdAt: string;
-  entityType?: "task" | "project";
-  entityId?: string;
+  taskId?: string;
 };
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -98,6 +99,27 @@ export default function NotificationsPage() {
     }
   };
 
+  const deleteNotification = async (id: string) => {
+    setUpdating((prev) => ({ ...prev, [id]: true }));
+    try {
+      await api.delete(`/notifications/${id}`);
+      setItems((prev) => prev.filter((n) => n._id !== id));
+      showToast({
+        title: "Notification deleted",
+        description: "The notification has been permanently removed.",
+        variant: "success"
+      });
+    } catch {
+      showToast({
+        title: "Action failed",
+        description: "We could not delete that notification.",
+        variant: "error"
+      });
+    } finally {
+      setUpdating((prev) => ({ ...prev, [id]: false }));
+    }
+  };
+
   const unreadCount = items.filter((item) => !item.isRead).length;
 
   const markAllRead = async () => {
@@ -126,6 +148,16 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     load();
+
+    const handleNewNotification = () => {
+      load();
+    };
+
+    window.addEventListener("taskpilot:new_notification", handleNewNotification);
+
+    return () => {
+      window.removeEventListener("taskpilot:new_notification", handleNewNotification);
+    };
   }, []);
 
   return (
@@ -183,6 +215,7 @@ export default function NotificationsPage() {
                     </div>
                     <div>
                       <p className={`text-sm leading-relaxed ${n.isRead ? "text-[var(--muted)]" : "text-[var(--foreground)] font-bold"}`}>
+                        {n.title && <strong className="block mb-1 text-emerald-400">{n.title}</strong>}
                         {n.message}
                       </p>
                       <div className="flex items-center gap-3 mt-2 text-[10px] text-gray-500 uppercase tracking-widest font-bold">
@@ -190,9 +223,9 @@ export default function NotificationsPage() {
                           <Clock className="w-3 h-3" />
                           {new Date(n.createdAt).toLocaleString()}
                         </span>
-                        {n.entityId && (
+                        {n.taskId && (
                           <Link
-                            href={`/${n.entityType}s/${n.entityId}`}
+                            href={`/tasks/${n.taskId}`}
                             className="text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1"
                           >
                             View Details <ArrowRight className="w-2 h-2" />
@@ -202,16 +235,26 @@ export default function NotificationsPage() {
                     </div>
                   </div>
 
-                  {!n.isRead && (
+                  <div className="flex items-center gap-2">
+                    {!n.isRead && (
+                      <button
+                        onClick={() => markRead(n._id)}
+                        disabled={!!updating[n._id]}
+                        className="shrink-0 p-2 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-50 text-gray-400 hover:text-white transition group/btn"
+                        title="Mark as read"
+                      >
+                        <Check className="w-4 h-4 group-hover/btn:scale-110 transition" />
+                      </button>
+                    )}
                     <button
-                      onClick={() => markRead(n._id)}
+                      onClick={() => deleteNotification(n._id)}
                       disabled={!!updating[n._id]}
-                      className="shrink-0 p-2 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-50 text-gray-400 hover:text-white transition group/btn"
-                      title="Mark as read"
+                      className="shrink-0 px-3 py-2 text-[10px] font-bold uppercase tracking-wider rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 disabled:opacity-50 transition"
+                      title="Delete notification"
                     >
-                      <Check className="w-4 h-4 group-hover/btn:scale-110 transition" />
+                      Delete
                     </button>
-                  )}
+                  </div>
                 </div>
               </div>
             ))}

@@ -18,6 +18,7 @@ import {
   ClockCountdown,
   Stop,
   ArrowSquareOut,
+  IdentificationCard,
 } from "@phosphor-icons/react";
 
 type SidebarProps = {
@@ -54,6 +55,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useMe();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingAttendanceRequests, setPendingAttendanceRequests] = useState(0);
   const [activeSession, setActiveSession] = useState<ActiveWorkSession | null>(
     null,
   );
@@ -61,22 +63,44 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   const [sessionLoading, setSessionLoading] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      api
-        .get("/notifications")
-        .then((res) => {
-          const notifications = (res.data.notifications ??
-            []) as NotificationRecord[];
-          const count = notifications.filter(
-            (notification) =>
-              !notification.isRead &&
-              !notification.message?.includes("moved to pending") &&
-              !notification.message?.includes("moved to inprogress")
-          ).length;
-          setUnreadCount(count);
-        })
-        .catch(() => {});
-    }
+    const fetchNotifications = () => {
+      if (user) {
+        api
+          .get("/notifications")
+          .then((res) => {
+            const notifications = (res.data.notifications ?? []) as NotificationRecord[];
+            const count = notifications.filter(
+              (notification) =>
+                !notification.isRead &&
+                !notification.message?.includes("moved to pending") &&
+                !notification.message?.includes("moved to inprogress")
+            ).length;
+            setUnreadCount(count);
+          })
+          .catch(() => {});
+
+        if (user.role === "admin" || user.role === "superadmin") {
+          api
+            .get("/attendance/analytics")
+            .then((res) => {
+              setPendingAttendanceRequests(res.data.pendingRequests || 0);
+            })
+            .catch(() => {});
+        }
+      }
+    };
+
+    fetchNotifications();
+
+    const handleNewNotification = () => {
+      fetchNotifications();
+    };
+
+    window.addEventListener("taskpilot:new_notification", handleNewNotification);
+
+    return () => {
+      window.removeEventListener("taskpilot:new_notification", handleNewNotification);
+    };
   }, [user]);
 
   useEffect(() => {
@@ -228,6 +252,9 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
         ]
       : []),
     { name: "Notifications", href: "/notifications", icon: Bell },
+    ...(user?.role !== "client"
+      ? [{ name: "Attendance", href: "/attendance", icon: IdentificationCard }]
+      : []),
   ];
 
   return (
@@ -300,6 +327,15 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
                       suppressHydrationWarning
                     >
                       {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+
+                  {item.name === "Attendance" && pendingAttendanceRequests > 0 && (
+                    <span
+                      className="z-20 ml-auto rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-extrabold text-[var(--foreground)] shadow-[0_0_10px_rgba(245,158,11,0.3)]"
+                      suppressHydrationWarning
+                    >
+                      {pendingAttendanceRequests > 9 ? "9+" : pendingAttendanceRequests}
                     </span>
                   )}
 

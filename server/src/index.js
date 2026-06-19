@@ -25,11 +25,18 @@ import dashboardRoutes from "./routes/dashboard.js";
 import userRoutes from "./routes/users.js";
 import notificationRoutes from "./routes/notification.js";
 import dailyUpdateRoutes from "./routes/dailyUpdates.js";
+import attendanceRoutes from "./routes/attendanceRoutes.js";
+import { initCronJobs } from "./utils/cronJobs.js";
+import { initSocket } from "./services/socketHandler.js";
+import http from "http";
 
 const PORT = process.env.PORT || 8000;
 
 const app = express();
 app.set("trust proxy", 1);
+
+const server = http.createServer(app);
+initSocket(server);
 
 app.use(helmet());
 app.use(
@@ -76,7 +83,7 @@ app.use("/users", userRoutes);
 app.use("/notifications", notificationRoutes);
 app.use("/activity", activityRoutes);
 app.use("/daily-updates", dailyUpdateRoutes);
-
+app.use("/attendance", attendanceRoutes);
 app.get("/", (_req, res) => {
   res.json({ status: "ok", version: "1.0.0" });
 });
@@ -88,8 +95,9 @@ app.use((error, _req, res, _next) => {
   });
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`TaskPilot backend running on http://localhost:${PORT}`);
+  initCronJobs();
 });
 
 export default app;

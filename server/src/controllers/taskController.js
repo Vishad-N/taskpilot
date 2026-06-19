@@ -1,6 +1,6 @@
 import Task from "../models/Task.js";
 import ActivityLog from "../models/ActivityLog.js";
-import Notification from "../models/Notification.js";
+import NotificationService from "../services/notificationService.js";
 import Project from "../models/Project.js";
 import User from "../models/User.js";
 import Comment from "../models/Comment.js";
@@ -620,15 +620,16 @@ export const createTask = async (req, res) => {
     });
 
     if (assigneeIds.length > 0) {
-      await Notification.insertMany(
-        assigneeIds.map((userId) => ({
+      for (const userId of assigneeIds) {
+        await NotificationService.createNotification({
           userId,
+          organizationId: project.organizationId,
+          title: "New Task Assigned",
           message: `You have been assigned a new task: ${task.title}`,
-          entityType: "task",
-          entityId: task._id,
-          organizationId: project.organizationId
-        }))
-      );
+          type: "task_assigned",
+          taskId: task._id
+        });
+      }
     }
 
     await ActivityLog.create({
@@ -752,15 +753,27 @@ export const updateTaskStatus = async (req, res) => {
     const uniqueNotifyIds = [...new Set(notifyIds)].filter(Boolean);
 
     if (uniqueNotifyIds.length > 0) {
-      await Notification.insertMany(
-        uniqueNotifyIds.map((userId) => ({
+      for (const userId of uniqueNotifyIds) {
+        await NotificationService.createNotification({
           userId,
+          organizationId: task.organizationId,
+          title: "Task Status Updated",
           message: `Your task "${task.title}" moved to ${status}`,
-          entityType: "task",
-          entityId: task._id,
-          organizationId: task.organizationId
-        }))
-      );
+          type: status === "completed" ? "task_completed" : "task_updated",
+          taskId: task._id
+        });
+      }
+    }
+    
+    if (status === "completed" && task.createdBy && !uniqueNotifyIds.includes(String(task.createdBy._id || task.createdBy))) {
+      await NotificationService.createNotification({
+        userId: task.createdBy._id || task.createdBy,
+        organizationId: task.organizationId,
+        title: "Task Completed",
+        message: `Task "${task.title}" has been marked as completed.`,
+        type: "task_completed",
+        taskId: task._id
+      });
     }
 
     await ActivityLog.create({
@@ -1343,15 +1356,16 @@ export const updateTask = async (req, res) => {
       const prevIds = (before.assignedToUsers || []).map((id) => String(id));
       const newlyAssignedIds = nextAssigneeIds.filter((id) => !prevIds.includes(String(id)));
       if (newlyAssignedIds.length > 0) {
-        await Notification.insertMany(
-          newlyAssignedIds.map((userId) => ({
+        for (const userId of newlyAssignedIds) {
+          await NotificationService.createNotification({
             userId,
-            message: `You have been assigned a task: ${task.title}`,
-            entityType: "task",
-            entityId: task._id,
-            organizationId
-          }))
-        );
+            organizationId: task.organizationId,
+            title: "Task Reassigned",
+            message: `You have been assigned to task: ${task.title}`,
+            type: "task_assigned",
+            taskId: task._id
+          });
+        }
       }
     }
 
