@@ -16,8 +16,14 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       Notification.requestPermission().catch(console.error);
     }
 
-    // Connect to Socket.IO using the main API URL (typically matches Next.js proxy setup)
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "";
+    let backendUrl = process.env.NEXT_PUBLIC_API_URL || "";
+    try {
+      if (backendUrl) {
+        backendUrl = new URL(backendUrl).origin;
+      }
+    } catch (e) {
+      console.error("Invalid NEXT_PUBLIC_API_URL for socket:", backendUrl);
+    }
     
     const socket: Socket = io(backendUrl || undefined, {
       withCredentials: true,
