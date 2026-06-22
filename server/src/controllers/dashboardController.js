@@ -110,21 +110,36 @@ export const getDashboardStats = async (req, res) => {
         ? await Organization.findById(orgId).select("_id name")
         : null;
 
-      const totalProjects = await Project.countDocuments({
+      const baseProjectFilter = {
         organizationId: orgId,
         clientVisible: true
-      });
+      };
+
+      const baseTaskFilter = {
+        organizationId: orgId,
+        clientVisible: true
+      };
+
+      if (req.user.projectIds && req.user.projectIds.length > 0) {
+        baseProjectFilter._id = { $in: req.user.projectIds };
+        baseTaskFilter.projectId = { $in: req.user.projectIds };
+      }
+
+      const totalProjects = await Project.countDocuments(baseProjectFilter);
 
       const completedTasks = await Task.countDocuments({
-        organizationId: orgId,
-        status: "completed",
-        clientVisible: true
+        ...baseTaskFilter,
+        status: "completed"
       });
 
       const inProgressTasks = await Task.countDocuments({
-        organizationId: orgId,
-        status: "inprogress",
-        clientVisible: true
+        ...baseTaskFilter,
+        status: "inprogress"
+      });
+
+      const pendingTasks = await Task.countDocuments({
+        ...baseTaskFilter,
+        status: "pending"
       });
 
       return res.json({
@@ -132,7 +147,8 @@ export const getDashboardStats = async (req, res) => {
         organization,
         totalProjects,
         completedTasks,
-        inProgressTasks
+        inProgressTasks,
+        pendingTasks
       });
     }
 

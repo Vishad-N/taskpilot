@@ -72,6 +72,62 @@ export default function MyTasksPage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    const handleTaskCreated = (e: Event) => {
+      const customEvent = e as CustomEvent<Task>;
+      const newTask = customEvent.detail;
+      
+      const isAssigned = 
+        (newTask.assignedTo && typeof newTask.assignedTo === 'object' && newTask.assignedTo._id === user?._id) ||
+        (typeof newTask.assignedTo === 'string' && newTask.assignedTo === user?._id) ||
+        (newTask.assignedToUsers && newTask.assignedToUsers.some(u => typeof u === 'object' ? u._id === user?._id : u === user?._id));
+
+      if (!isAssigned) return;
+
+      setTasks((current) => {
+        if (current.some((t) => t._id === newTask._id)) return current;
+        return [newTask, ...current];
+      });
+    };
+
+    const handleTaskUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<Task>;
+      const updatedTask = customEvent.detail;
+      
+      const isAssigned = 
+        (updatedTask.assignedTo && typeof updatedTask.assignedTo === 'object' && updatedTask.assignedTo._id === user?._id) ||
+        (typeof updatedTask.assignedTo === 'string' && updatedTask.assignedTo === user?._id) ||
+        (updatedTask.assignedToUsers && updatedTask.assignedToUsers.some(u => typeof u === 'object' ? u._id === user?._id : u === user?._id));
+
+      setTasks((current) => {
+        const exists = current.some(t => t._id === updatedTask._id);
+        if (exists) {
+          if (!isAssigned) return current.filter(t => t._id !== updatedTask._id);
+          return current.map(t => t._id === updatedTask._id ? { ...t, ...updatedTask } : t);
+        } else if (isAssigned) {
+          return [updatedTask, ...current];
+        }
+        return current;
+      });
+    };
+
+    const handleTaskDeleted = (e: Event) => {
+      const customEvent = e as CustomEvent<{ _id: string }>;
+      const { _id } = customEvent.detail;
+      setTasks((current) => current.filter((task) => task._id !== _id));
+    };
+
+    window.addEventListener("taskpilot:task_created", handleTaskCreated);
+    window.addEventListener("taskpilot:task_updated", handleTaskUpdated);
+    window.addEventListener("taskpilot:task_deleted", handleTaskDeleted);
+
+    return () => {
+      window.removeEventListener("taskpilot:task_created", handleTaskCreated);
+      window.removeEventListener("taskpilot:task_updated", handleTaskUpdated);
+      window.removeEventListener("taskpilot:task_deleted", handleTaskDeleted);
+    };
+  }, [user?._id]);
+
   const grouped = useMemo(() => {
     const map: Record<string, Task[]> = {};
     for (const s of boardStatuses) map[s] = [];

@@ -12,6 +12,11 @@ type Organization = {
   name: string;
 };
 
+type Project = {
+  _id: string;
+  name: string;
+};
+
 type UserRecord = {
   _id: string;
   name: string;
@@ -54,6 +59,8 @@ export default function SuperAdminDashboard() {
   const [newUserRole, setNewUserRole] = useState("client");
   const [newUserOrg, setNewUserOrg] = useState("");
   const [newUserAllowedOrgs, setNewUserAllowedOrgs] = useState<string[]>([]);
+  const [newUserProjectIds, setNewUserProjectIds] = useState<string[]>([]);
+  const [orgProjects, setOrgProjects] = useState<Project[]>([]);
   const [newUserPassword, setNewUserPassword] = useState("");
   const [createUserError, setCreateUserError] = useState<string | null>(null);
   const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
@@ -90,6 +97,23 @@ export default function SuperAdminDashboard() {
 
     void run();
   }, [loadData]);
+
+  useEffect(() => {
+    if (newUserRole === "client" && newUserOrg) {
+      api
+        .get(`/projects/org-projects?organizationId=${newUserOrg}`)
+        .then((res) => {
+          setOrgProjects(res.data.projects ?? []);
+        })
+        .catch((err) => {
+          console.error("Failed to fetch projects", err);
+          setOrgProjects([]);
+        });
+    } else {
+      setOrgProjects([]);
+    }
+    setNewUserProjectIds([]);
+  }, [newUserOrg, newUserRole]);
 
   const createOrg = async () => {
     if (!orgName.trim()) {
@@ -147,6 +171,7 @@ export default function SuperAdminDashboard() {
         role: newUserRole,
         organizationId: newUserOrg,
         allowedOrganizations: newUserAllowedOrgs.filter((organizationId) => organizationId !== newUserOrg),
+        projectIds: newUserRole === "client" ? newUserProjectIds : [],
         password: newUserPassword || undefined
       });
 
@@ -155,6 +180,7 @@ export default function SuperAdminDashboard() {
       setNewUserEmail("");
       setNewUserPassword("");
       setNewUserAllowedOrgs([]);
+      setNewUserProjectIds([]);
       await loadData();
       showToast({
         title: "User created",
@@ -408,6 +434,45 @@ export default function SuperAdminDashboard() {
                   })}
                 </div>
               </div>
+
+              {newUserRole === "client" && (
+                <div className="rounded-3xl border border-[var(--card-border)] bg-[var(--surface-2)] p-4">
+                  <p className="text-sm font-medium">Project Access</p>
+                  <p className="text-xs text-[var(--muted)] mb-3">Select the projects this client is allowed to access.</p>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    {orgProjects.map((project) => {
+                      const checked = newUserProjectIds.includes(project._id);
+                      return (
+                        <label
+                          key={project._id}
+                          className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${
+                            checked
+                              ? "border-emerald-500/20 bg-emerald-500/8"
+                              : "border-[var(--card-border)] bg-[var(--surface)]"
+                          }`}
+                        >
+                          <span>{project.name}</span>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() =>
+                              setNewUserProjectIds((current) =>
+                                current.includes(project._id)
+                                  ? current.filter((value) => value !== project._id)
+                                  : [...current, project._id]
+                              )
+                            }
+                            className="h-4 w-4"
+                          />
+                        </label>
+                      );
+                    })}
+                    {orgProjects.length === 0 && (
+                      <p className="text-xs text-[var(--muted)] col-span-2">No projects found for this organization.</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <input
                 type="text"

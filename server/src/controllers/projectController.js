@@ -67,6 +67,9 @@ export const getOrganizationProjects = async (req, res) => {
     // Clients can only see clientVisible projects
     if (req.user.role === "client") {
       query.clientVisible = true;
+      if (req.user.projectIds && req.user.projectIds.length > 0) {
+        query._id = { $in: req.user.projectIds };
+      }
     }
 
     const projects = await Project.find(query).populate(

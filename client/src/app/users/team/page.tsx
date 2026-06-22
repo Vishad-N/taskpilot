@@ -106,6 +106,74 @@ export default function TeamManagementPage() {
     fetchTeam();
   }, []);
 
+  useEffect(() => {
+    const handleTaskCreated = (e: Event) => {
+      const customEvent = e as CustomEvent<Task>;
+      const newTask = customEvent.detail;
+      
+      const assignedIds = [
+        ...(newTask.assignedTo && typeof newTask.assignedTo === 'object' ? [newTask.assignedTo._id] : []),
+        ...(typeof newTask.assignedTo === 'string' ? [newTask.assignedTo] : []),
+        ...(newTask.assignedToUsers ? newTask.assignedToUsers.map(u => typeof u === 'object' ? u._id : u) : [])
+      ];
+
+      setTaskCounts(prev => {
+        const next = { ...prev };
+        assignedIds.forEach(id => {
+          if (next[id] !== undefined) next[id] += 1;
+        });
+        return next;
+      });
+
+      if (selectedMember && assignedIds.includes(selectedMember._id)) {
+        setMemberTasks(current => {
+          if (current.some(t => t._id === newTask._id)) return current;
+          return [newTask, ...current];
+        });
+      }
+    };
+
+    const handleTaskUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<Task>;
+      const updatedTask = customEvent.detail;
+      
+      const assignedIds = [
+        ...(updatedTask.assignedTo && typeof updatedTask.assignedTo === 'object' ? [updatedTask.assignedTo._id] : []),
+        ...(typeof updatedTask.assignedTo === 'string' ? [updatedTask.assignedTo] : []),
+        ...(updatedTask.assignedToUsers ? updatedTask.assignedToUsers.map(u => typeof u === 'object' ? u._id : u) : [])
+      ];
+
+      setMemberTasks((current) => {
+        const exists = current.some((t) => t._id === updatedTask._id);
+        if (exists) {
+           if (selectedMember && !assignedIds.includes(selectedMember._id)) {
+             return current.filter(t => t._id !== updatedTask._id);
+           }
+           return current.map(t => t._id === updatedTask._id ? { ...t, ...updatedTask } : t);
+        } else if (selectedMember && assignedIds.includes(selectedMember._id)) {
+           return [updatedTask, ...current];
+        }
+        return current;
+      });
+    };
+
+    const handleTaskDeleted = (e: Event) => {
+      const customEvent = e as CustomEvent<{ _id: string }>;
+      const { _id } = customEvent.detail;
+      setMemberTasks(current => current.filter((task) => task._id !== _id));
+    };
+
+    window.addEventListener("taskpilot:task_created", handleTaskCreated);
+    window.addEventListener("taskpilot:task_updated", handleTaskUpdated);
+    window.addEventListener("taskpilot:task_deleted", handleTaskDeleted);
+
+    return () => {
+      window.removeEventListener("taskpilot:task_created", handleTaskCreated);
+      window.removeEventListener("taskpilot:task_updated", handleTaskUpdated);
+      window.removeEventListener("taskpilot:task_deleted", handleTaskDeleted);
+    };
+  }, [selectedMember]);
+
   const deleteUser = async (userId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const member = users.find((u) => u._id === userId);

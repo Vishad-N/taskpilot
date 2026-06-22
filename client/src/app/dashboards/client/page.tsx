@@ -219,6 +219,42 @@ export default function ClientDashboard() {
     })();
   }, []);
 
+  useEffect(() => {
+    const handleTaskCreated = (e: Event) => {
+      const customEvent = e as CustomEvent<Task>;
+      const newTask = customEvent.detail;
+      setTasks((current) => {
+        if (current.some((t) => t._id === newTask._id)) return current;
+        if ((newTask as any).clientVisible === false) return current;
+        return [newTask, ...current];
+      });
+    };
+
+    const handleTaskUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<Task>;
+      const updatedTask = customEvent.detail;
+      setTasks((current) =>
+        current.map((task) => (task._id === updatedTask._id ? { ...task, ...updatedTask } : task))
+      );
+    };
+
+    const handleTaskDeleted = (e: Event) => {
+      const customEvent = e as CustomEvent<{ _id: string }>;
+      const { _id } = customEvent.detail;
+      setTasks((current) => current.filter((task) => task._id !== _id));
+    };
+
+    window.addEventListener("taskpilot:task_created", handleTaskCreated);
+    window.addEventListener("taskpilot:task_updated", handleTaskUpdated);
+    window.addEventListener("taskpilot:task_deleted", handleTaskDeleted);
+
+    return () => {
+      window.removeEventListener("taskpilot:task_created", handleTaskCreated);
+      window.removeEventListener("taskpilot:task_updated", handleTaskUpdated);
+      window.removeEventListener("taskpilot:task_deleted", handleTaskDeleted);
+    };
+  }, []);
+
   if (loading)
     return (
       <DashboardLayout>

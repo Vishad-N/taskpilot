@@ -9,6 +9,11 @@ type Organization = {
   name: string;
 };
 
+type Project = {
+  _id: string;
+  name: string;
+};
+
 type ManagedUser = {
   _id: string;
   name: string;
@@ -19,6 +24,7 @@ type ManagedUser = {
   createdAt: string;
   organizationId?: Organization | null;
   allowedOrganizations?: Organization[];
+  projectIds?: Project[];
 };
 
 type UserEditor = {
@@ -29,6 +35,7 @@ type UserEditor = {
   isActive: boolean;
   organizationId: string;
   allowedOrganizations: string[];
+  projectIds: string[];
 };
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -57,7 +64,8 @@ const mapUserToEditor = (user: ManagedUser): UserEditor => ({
   status: user.status,
   isActive: Boolean(user.isActive),
   organizationId: user.organizationId?._id ?? "",
-  allowedOrganizations: (user.allowedOrganizations ?? []).map((organization) => organization._id)
+  allowedOrganizations: (user.allowedOrganizations ?? []).map((organization) => organization._id),
+  projectIds: (user.projectIds ?? []).map((project) => project._id)
 });
 
 export default function SuperAdminUsersPage() {
@@ -76,6 +84,7 @@ export default function SuperAdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
+  const [orgProjects, setOrgProjects] = useState<Project[]>([]);
 
   const loadData = useCallback(async () => {
     try {
@@ -148,6 +157,22 @@ export default function SuperAdminUsersPage() {
     setError(null);
   }, [selectedUser]);
 
+  useEffect(() => {
+    if (editor?.role === "client" && editor?.organizationId) {
+      api
+        .get(`/projects/org-projects?organizationId=${editor.organizationId}`)
+        .then((res) => {
+          setOrgProjects(res.data.projects ?? []);
+        })
+        .catch((err) => {
+          console.error("Failed to fetch projects", err);
+          setOrgProjects([]);
+        });
+    } else {
+      setOrgProjects([]);
+    }
+  }, [editor?.organizationId, editor?.role]);
+
   const applyUpdatedUser = (updatedUser: ManagedUser) => {
     setUsers((current) =>
       current.map((user) => (user._id === updatedUser._id ? updatedUser : user))
@@ -173,7 +198,8 @@ export default function SuperAdminUsersPage() {
         organizationId: editor.organizationId || null,
         allowedOrganizations: editor.allowedOrganizations.filter(
           (organizationId) => organizationId !== editor.organizationId
-        )
+        ),
+        projectIds: editor.role === "client" ? editor.projectIds : []
       });
 
       applyUpdatedUser(response.data.user);
@@ -563,6 +589,58 @@ export default function SuperAdminUsersPage() {
                     })}
                   </div>
                 </div>
+
+                {editor.role === "client" && (
+                  <div className="rounded-3xl border border-[var(--card-border)] bg-[var(--surface-2)] p-5">
+                    <div>
+                      <h3 className="text-lg font-semibold">Project access</h3>
+                      <p className="mt-1 text-sm text-[var(--muted)]">
+                        Select the projects this client is allowed to access.
+                      </p>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      {orgProjects.map((project) => {
+                        const checked = editor.projectIds.includes(project._id);
+
+                        return (
+                          <label
+                            key={project._id}
+                            className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${
+                              checked
+                                ? "border-emerald-500/20 bg-emerald-500/8"
+                                : "border-[var(--card-border)] bg-[var(--surface)]"
+                            }`}
+                          >
+                            <div>
+                              <p className="font-medium">{project.name}</p>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() =>
+                                setEditor((current) =>
+                                  current
+                                    ? {
+                                        ...current,
+                                        projectIds: current.projectIds.includes(project._id)
+                                          ? current.projectIds.filter((value) => value !== project._id)
+                                          : [...current.projectIds, project._id]
+                                      }
+                                    : current
+                                )
+                              }
+                              className="h-4 w-4"
+                            />
+                          </label>
+                        );
+                      })}
+                      {orgProjects.length === 0 && (
+                        <p className="text-xs text-[var(--muted)] col-span-2">No projects found for this organization.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_220px]">
                   <label className="space-y-2">

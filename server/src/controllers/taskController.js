@@ -7,6 +7,7 @@ import User from "../models/User.js";
 import Comment from "../models/Comment.js";
 import TaskWorkSession from "../models/TaskWorkSession.js";
 import { requireActiveOrganizationId } from "../utils/organizationScope.js";
+import { getIO } from "../services/socketHandler.js";
 
 const MILLISECONDS_PER_MINUTE = 60 * 1000;
 const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -655,6 +656,12 @@ export const createTask = async (req, res) => {
       message: "Task created successfully",
       task
     });
+
+    try {
+      getIO().to(`org:${project.organizationId}`).emit("task_created", task);
+    } catch (socketError) {
+      console.error("Socket error on task_created:", socketError);
+    }
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }
@@ -792,6 +799,12 @@ export const updateTaskStatus = async (req, res) => {
     });
 
     res.json(task);
+
+    try {
+      getIO().to(`org:${task.organizationId}`).emit("task_updated", task);
+    } catch (socketError) {
+      console.error("Socket error on task_updated:", socketError);
+    }
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }
@@ -812,6 +825,9 @@ export const getOrganizationTasks = async (req, res) => {
 
     if (req.user.role === "client") {
       query.clientVisible = true;
+      if (req.user.projectIds && req.user.projectIds.length > 0) {
+        query.projectId = { $in: req.user.projectIds };
+      }
     }
 
     if (req.user.role === "team") {
@@ -873,6 +889,9 @@ export const searchTasks = async (req, res) => {
 
     if (req.user.role === "client") {
       query.clientVisible = true;
+      if (req.user.projectIds && req.user.projectIds.length > 0) {
+        query.projectId = { $in: req.user.projectIds };
+      }
     }
 
     if (req.user.role === "team") {
@@ -910,6 +929,12 @@ export const getProjectTasks = async (req, res) => {
 
     if (req.user.role === "client") {
       query.clientVisible = true;
+      if (req.user.projectIds && req.user.projectIds.length > 0) {
+        const isAssigned = req.user.projectIds.some(id => id.toString() === req.params.projectId);
+        if (!isAssigned) {
+          return res.status(403).json({ message: "Not allowed for this project" });
+        }
+      }
     }
 
     if (req.user.role === "team") {
@@ -937,10 +962,16 @@ export const getClientTasks = async (req, res) => {
   try {
     const organizationId = await requireActiveOrganizationId(req);
 
-    const tasks = await populateAssignees(Task.find({
+    const query = {
       organizationId,
       clientVisible: true
-    }))
+    };
+
+    if (req.user.projectIds && req.user.projectIds.length > 0) {
+      query.projectId = { $in: req.user.projectIds };
+    }
+
+    const tasks = await populateAssignees(Task.find(query))
       .populate("projectId", "name");
 
     res.json({ tasks });
@@ -965,8 +996,18 @@ export const getTaskById = async (req, res) => {
       return res.status(404).json({ message: "Task not found" });
     }
 
-    if (req.user.role === "client" && !task.clientVisible) {
-      return res.status(403).json({ message: "Not allowed" });
+    if (req.user.role === "client") {
+      if (!task.clientVisible) {
+        return res.status(403).json({ message: "Not allowed" });
+      }
+      if (req.user.projectIds && req.user.projectIds.length > 0) {
+        const isAssignedToProject = req.user.projectIds.some(
+          id => id.toString() === task.projectId?._id?.toString() || id.toString() === task.projectId?.toString()
+        );
+        if (!isAssignedToProject) {
+          return res.status(403).json({ message: "Not allowed for this project" });
+        }
+      }
     }
 
     if (req.user.role === "team") {
@@ -1448,6 +1489,12 @@ export const updateTask = async (req, res) => {
       message: "Task updated successfully",
       task
     });
+
+    try {
+      getIO().to(`org:${organizationId}`).emit("task_updated", task);
+    } catch (socketError) {
+      console.error("Socket error on task_updated:", socketError);
+    }
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }
@@ -1490,6 +1537,12 @@ export const deleteTask = async (req, res) => {
     await Task.deleteMany({ _id: { $in: taskIdsToDelete } });
 
     res.json({ message: "Task deleted successfully" });
+
+    try {
+      getIO().to(`org:${organizationId}`).emit("task_deleted", { _id: task._id });
+    } catch (socketError) {
+      console.error("Socket error on task_deleted:", socketError);
+    }
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }

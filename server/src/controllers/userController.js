@@ -169,6 +169,7 @@ export const getAllUsers = async (_req, res) => {
       .select("-password")
       .populate("organizationId", "name")
       .populate("allowedOrganizations", "name")
+      .populate("projectIds", "name")
       .sort({ createdAt: -1 });
 
     res.json({ users });
@@ -179,7 +180,7 @@ export const getAllUsers = async (_req, res) => {
 
 export const createUserBySuperAdmin = async (req, res) => {
   try {
-    const { name, email, role, organizationId, password, allowedOrganizations } = req.body;
+    const { name, email, role, organizationId, password, allowedOrganizations, projectIds } = req.body;
 
     if (!name || !email || !role) {
       return res.status(400).json({ message: "name, email, and role are required" });
@@ -220,6 +221,7 @@ export const createUserBySuperAdmin = async (req, res) => {
       role,
       organizationId,
       allowedOrganizations: normalizedAllowedOrganizations,
+      projectIds: role === "client" ? (projectIds || []) : [],
       status: "approved"
     });
 
@@ -256,6 +258,7 @@ export const updateUserBySuperAdmin = async (req, res) => {
       role,
       organizationId,
       allowedOrganizations,
+      projectIds,
       status,
       isActive
     } = req.body;
@@ -357,12 +360,19 @@ export const updateUserBySuperAdmin = async (req, res) => {
       user.allowedOrganizations = normalizedAllowedOrganizations;
     }
 
+    if (Object.prototype.hasOwnProperty.call(req.body, "projectIds")) {
+      user.projectIds = nextRole === "client" ? (projectIds || []) : [];
+    } else if (nextRole !== "client") {
+      user.projectIds = [];
+    }
+
     await user.save();
 
     const updatedUser = await User.findById(user._id)
       .select("-password")
       .populate("organizationId", "name")
-      .populate("allowedOrganizations", "name");
+      .populate("allowedOrganizations", "name")
+      .populate("projectIds", "name");
 
     res.json({
       message: "User updated successfully",

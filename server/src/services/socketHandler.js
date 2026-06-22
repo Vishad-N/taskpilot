@@ -40,11 +40,28 @@ export const initSocket = (server) => {
     }
   });
 
-  io.on("connection", (socket) => {
+  io.on("connection", async (socket) => {
     console.log(`Socket connected for user: ${socket.userId}`);
     
     // Join a room specifically for this user
     socket.join(`user:${socket.userId}`);
+
+    try {
+      const User = (await import("../models/User.js")).default;
+      const user = await User.findById(socket.userId).select("organizationId allowedOrganizations");
+      if (user) {
+        if (user.organizationId) {
+          socket.join(`org:${user.organizationId}`);
+        }
+        if (user.allowedOrganizations && user.allowedOrganizations.length > 0) {
+          user.allowedOrganizations.forEach((orgId) => {
+            socket.join(`org:${orgId}`);
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error joining organization rooms for socket:", error);
+    }
 
     socket.on("disconnect", () => {
       console.log(`Socket disconnected for user: ${socket.userId}`);

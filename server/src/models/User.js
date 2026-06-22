@@ -36,6 +36,13 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
+    projectIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Project",
+      },
+    ],
+
     status: {
       type: String,
       enum: ["pending", "approved"],

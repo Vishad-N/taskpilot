@@ -1,6 +1,7 @@
 import Comment from "../models/Comment.js";
 import Task from "../models/Task.js";
 import ActivityLog from "../models/ActivityLog.js";
+import { getIO } from "../services/socketHandler.js";
 
 // Add Comment
 export const addComment = async (req, res) => {
@@ -37,6 +38,12 @@ export const addComment = async (req, res) => {
     });
 
     res.status(201).json({ comment });
+
+    try {
+      getIO().to(`org:${task.organizationId}`).emit("task_comment_added", { comment, taskId });
+    } catch (socketError) {
+      console.error("Socket error on task_comment_added:", socketError);
+    }
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

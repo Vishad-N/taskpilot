@@ -363,6 +363,63 @@ export default function TaskDetailsPage() {
     };
   }, [workSummary?.activeSession]);
 
+  useEffect(() => {
+    const handleTaskCreated = (e: Event) => {
+      const customEvent = e as CustomEvent<Task>;
+      const newTask = customEvent.detail;
+      
+      if (newTask.parentTaskId === id || (typeof newTask.parentTaskId === 'object' && newTask.parentTaskId?._id === id)) {
+        setSubtasks(current => {
+          if (current.some(subtask => subtask._id === newTask._id)) return current;
+          return [newTask, ...current];
+        });
+      }
+    };
+
+    const handleTaskUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<Task>;
+      const updatedTask = customEvent.detail;
+      
+      if (updatedTask._id === id) {
+         setTask(prev => prev ? { ...prev, ...updatedTask } : prev);
+      }
+      
+      setSubtasks(current => 
+        current.map(subtask => subtask._id === updatedTask._id ? { ...subtask, ...updatedTask } : subtask)
+      );
+    };
+
+    const handleTaskDeleted = (e: Event) => {
+      const customEvent = e as CustomEvent<{ _id: string }>;
+      const { _id } = customEvent.detail;
+      setSubtasks(current => current.filter(subtask => subtask._id !== _id));
+    };
+
+    const handleCommentAdded = (e: Event) => {
+      const customEvent = e as CustomEvent<{ comment: Comment, taskId: string }>;
+      const { comment, taskId } = customEvent.detail;
+      
+      if (taskId === id) {
+        setComments(current => {
+          if (current.some(c => c._id === comment._id)) return current;
+          return [...current, comment];
+        });
+      }
+    };
+
+    window.addEventListener("taskpilot:task_created", handleTaskCreated);
+    window.addEventListener("taskpilot:task_updated", handleTaskUpdated);
+    window.addEventListener("taskpilot:task_deleted", handleTaskDeleted);
+    window.addEventListener("taskpilot:task_comment_added", handleCommentAdded);
+    
+    return () => {
+      window.removeEventListener("taskpilot:task_created", handleTaskCreated);
+      window.removeEventListener("taskpilot:task_updated", handleTaskUpdated);
+      window.removeEventListener("taskpilot:task_deleted", handleTaskDeleted);
+      window.removeEventListener("taskpilot:task_comment_added", handleCommentAdded);
+    };
+  }, [id]);
+
   const addComment = async (isInternal: boolean = false) => {
     if (!newComment.trim()) return;
     const commentText = newComment;
