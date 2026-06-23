@@ -21,6 +21,7 @@ type Task = {
   projectId?: { _id: string; name: string } | string;
   assignedToUsers?: Array<{ _id: string; name: string }>;
   createdBy?: { _id: string; name: string } | null;
+  assignedTo?: { _id: string; name?: string } | string | null;
 };
 
 const statusColors: Record<string, string> = {

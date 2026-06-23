@@ -24,6 +24,8 @@ type Task = {
   deadlineDate?: string;
   dueDate?: string;
   projectId?: { _id: string; name: string } | string;
+  assignedTo?: { _id: string; name?: string } | string | null;
+  assignedToUsers?: Array<{ _id: string; name?: string } | string>;
 };
 
 const statusColors: Record<string, string> = {

@@ -37,6 +37,7 @@ type Task = {
   priority?: string;
   assignedTo?: { _id: string; name: string };
   createdBy?: { _id: string; name: string } | null;
+  projectId?: { _id: string; name: string } | string;
 };
 
 type DailyUpdate = {
