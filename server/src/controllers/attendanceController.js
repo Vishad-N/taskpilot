@@ -16,9 +16,9 @@ function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * (Math.PI / 180)) *
-      Math.cos(lat2 * (Math.PI / 180)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   const d = R * c;
   return d * 1000;
@@ -57,7 +57,7 @@ export const clockIn = async (req, res) => {
     for (const pending of pendingAttendances) {
       const autoOut = new Date(pending.clockIn);
       autoOut.setHours(19, 0, 0, 0); // 7:00 PM local time of the clock-in date
-      
+
       // If the clock in was somehow AFTER 7:00 PM, just add 0 hours
       if (autoOut <= pending.clockIn) {
         pending.clockOut = pending.clockIn;
@@ -79,7 +79,10 @@ export const clockIn = async (req, res) => {
       return res.status(400).json({ message: "You have already clocked in today." });
     }
 
-    const isLate = now.getHours() >= 12;
+    // Convert current time to IST to get the accurate local hour regardless of server timezone (UTC on Hostinger)
+    const options = { timeZone: 'Asia/Kolkata', hour: 'numeric', hourCycle: 'h23' };
+    const istHour = parseInt(new Intl.DateTimeFormat('en-US', options).format(now), 10);
+    const isLate = istHour >= 12;
 
     if (existingAttendance) {
       existingAttendance.clockIn = now;
@@ -161,7 +164,7 @@ export const clockOut = async (req, res) => {
 
     const clockOutTime = new Date();
     attendance.clockOut = clockOutTime;
-    
+
     // Calculate total hours
     const diffMs = clockOutTime.getTime() - new Date(attendance.clockIn).getTime();
     attendance.totalHours = diffMs / (1000 * 60 * 60);
@@ -190,7 +193,7 @@ export const getMyAttendance = async (req, res) => {
     for (const pending of pendingAttendances) {
       const autoOut = new Date(pending.clockIn);
       autoOut.setHours(19, 0, 0, 0); // 7:00 PM local time of the clock-in date
-      
+
       if (autoOut <= pending.clockIn) {
         pending.clockOut = pending.clockIn;
         pending.totalHours = 0;
@@ -254,12 +257,12 @@ export const updateAttendance = async (req, res) => {
 
     if (clockIn) attendance.clockIn = finalClockIn;
     if (clockOut) attendance.clockOut = finalClockOut;
-    
+
     if (attendance.clockIn && attendance.clockOut) {
       const diffMs = attendance.clockOut.getTime() - attendance.clockIn.getTime();
       attendance.totalHours = diffMs / (1000 * 60 * 60);
     }
-    
+
     if (status) attendance.status = status;
 
     attendance.corrected = true;
@@ -316,7 +319,7 @@ export const requestCorrection = async (req, res) => {
 export const getCorrectionRequests = async (req, res) => {
   try {
     const organizationId = await requireActiveOrganizationId(req);
-    
+
     const requests = await AttendanceCorrectionRequest.find({ organizationId })
       .populate("userId", "name email")
       .populate("attendanceId")
@@ -347,10 +350,10 @@ export const updateCorrectionRequest = async (req, res) => {
         attendance = await Attendance.findById(request.attendanceId);
       } else {
         // Missing attendance creation
-        const dateString = request.requestedClockIn 
+        const dateString = request.requestedClockIn
           ? new Date(request.requestedClockIn).toISOString().split('T')[0]
           : getTodayDateString();
-          
+
         attendance = await Attendance.findOne({
           userId: request.userId,
           attendanceDate: dateString,
@@ -368,7 +371,7 @@ export const updateCorrectionRequest = async (req, res) => {
       if (attendance) {
         if (request.requestedClockIn) attendance.clockIn = request.requestedClockIn;
         if (request.requestedClockOut) attendance.clockOut = request.requestedClockOut;
-        
+
         if (attendance.clockIn && attendance.clockOut) {
           const diffMs = new Date(attendance.clockOut).getTime() - new Date(attendance.clockIn).getTime();
           attendance.totalHours = diffMs / (1000 * 60 * 60);
@@ -377,7 +380,7 @@ export const updateCorrectionRequest = async (req, res) => {
         attendance.corrected = true;
         attendance.correctedBy = req.user._id;
         attendance.correctionReason = `Correction request ${status.toLowerCase()}: ${request.reason}`;
-        
+
         if (status === "Half Day") {
           attendance.status = "Half Day";
         } else if (status === "Approved") {
@@ -427,7 +430,7 @@ export const getAnalytics = async (req, res) => {
 
     const currentlyClockedInUserIds = allAttendanceToday.filter(a => !a.clockOut).map(a => a.userId.toString());
     const currentlyClockedIn = new Set(currentlyClockedInUserIds).size;
-    
+
     const totalHoursToday = allAttendanceToday.reduce((acc, curr) => acc + (curr.totalHours || 0), 0);
 
     const pendingRequests = await AttendanceCorrectionRequest.countDocuments({
@@ -494,14 +497,14 @@ export const exportAttendance = async (req, res) => {
       .sort({ createdAt: 1 });
 
     // Fetch users for monthly summary
-    const usersQuery = employeeId 
-      ? { _id: employeeId } 
-      : { 
-          $or: [{ organizationId }, { allowedOrganizations: organizationId }],
-          isActive: true,
-          role: { $ne: "client" }
-        };
-    
+    const usersQuery = employeeId
+      ? { _id: employeeId }
+      : {
+        $or: [{ organizationId }, { allowedOrganizations: organizationId }],
+        isActive: true,
+        role: { $ne: "client" }
+      };
+
     const users = await User.find(usersQuery);
 
     // Initialize workbook
