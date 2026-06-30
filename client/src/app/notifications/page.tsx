@@ -279,6 +279,7 @@ export default function NotificationsPage() {
                   totalPages={totalPages}
                   onPageChange={setPage}
                   totalRecords={totalRecords}
+                  limit={limit}
                 />
               </div>
             )}

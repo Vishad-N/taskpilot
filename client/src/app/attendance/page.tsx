@@ -356,6 +356,7 @@ export default function AttendancePage() {
                     totalPages={requestsTotalPages}
                     onPageChange={setRequestsPage}
                     totalRecords={requestsTotalRecords}
+                    limit={limit}
                   />
                 </div>
               )}

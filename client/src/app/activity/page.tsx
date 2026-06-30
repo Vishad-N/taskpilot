@@ -172,6 +172,7 @@ export default function ActivityPage() {
                   totalPages={totalPages}
                   onPageChange={setPage}
                   totalRecords={totalRecords}
+                  limit={limit}
                 />
               </div>
             )}

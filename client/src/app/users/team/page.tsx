@@ -328,6 +328,7 @@ export default function TeamManagementPage() {
             totalPages={totalPages}
             onPageChange={setPage}
             totalRecords={totalRecords}
+            limit={limit}
           />
         </div>
       )}

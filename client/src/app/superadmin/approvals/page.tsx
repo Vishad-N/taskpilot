@@ -364,6 +364,7 @@ export default function SuperAdminApprovalsPage() {
                 totalPages={totalPages}
                 onPageChange={setPage}
                 totalRecords={totalRecords}
+                limit={limit}
               />
             </div>
           )}
