@@ -87,7 +87,7 @@ export default function ActivityPage() {
           <p className="text-gray-400 text-sm mt-1">Timeline of all actions across the organization.</p>
         </div>
         <button
-          onClick={fetchLogs}
+          onClick={() => fetchLogs(1)}
           className="p-2 hover:bg-white/5 rounded-full transition"
           title="Refresh Feed"
         >
