@@ -4,11 +4,26 @@ import Organization from "../models/Organization.js";
 // Get all pending users
 export const getPendingUsers = async (req, res) => {
   try {
-    const users = await User.find({ status: "pending" }).select("-password");
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
+
+    const query = { status: "pending" };
+
+    const [data, totalRecords] = await Promise.all([
+      User.find(query).select("-password").sort({ createdAt: -1 }).skip(skip).limit(limit),
+      User.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
 
     res.json({
       success: true,
-      users,
+      users: data,
+      page,
+      limit,
+      totalRecords,
+      totalPages
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -47,6 +47,9 @@ export const initSocket = (server) => {
     socket.join(`user:${socket.userId}`);
 
     try {
+      const connectDb = (await import("./../db.js")).default;
+      await connectDb();
+
       const User = (await import("../models/User.js")).default;
       const user = await User.findById(socket.userId).select("organizationId allowedOrganizations");
       if (user) {

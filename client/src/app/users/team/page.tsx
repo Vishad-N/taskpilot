@@ -7,6 +7,8 @@ import { Users, Mail, Shield, UserPlus, Search, Trash2, X, CheckSquare, Clock, A
 import { useToast } from "@/components/ui/ToastProvider";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import Pagination from "@/components/ui/Pagination";
+import { usePaginationLimit } from "@/hooks/usePaginationLimit";
 
 type TeamMember = {
   _id: string;
@@ -66,12 +68,19 @@ export default function TeamManagementPage() {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [taskCounts, setTaskCounts] = useState<Record<string, number>>({});
 
-  const fetchTeam = async () => {
+  const [page, setPage] = useState(1);
+  const limit = usePaginationLimit();
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+
+  const fetchTeam = async (currentPage = 1) => {
     setLoading(true);
     try {
-      const res = await api.get("/users/team");
+      const res = await api.get(`/users/team?page=${currentPage}&limit=${limit}`);
       const members: TeamMember[] = res.data.users ?? [];
       setUsers(members);
+      setTotalPages(res.data.totalPages ?? 1);
+      setTotalRecords(res.data.totalRecords ?? 0);
       // Fetch task counts for all members in parallel
       const counts = await Promise.all(
         members.map((m) =>
@@ -105,8 +114,8 @@ export default function TeamManagementPage() {
   };
 
   useEffect(() => {
-    fetchTeam();
-  }, []);
+    fetchTeam(page);
+  }, [page, limit]);
 
   useEffect(() => {
     const handleTaskCreated = (e: Event) => {
@@ -309,6 +318,17 @@ export default function TeamManagementPage() {
               <p className="text-gray-500 font-medium">No organization members found.</p>
             </div>
           )}
+        </div>
+      )}
+
+      {totalPages > 1 && !loading && (
+        <div className="mt-8">
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+            totalRecords={totalRecords}
+          />
         </div>
       )}
 

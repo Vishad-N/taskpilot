@@ -6,14 +6,33 @@ export const getNotifications = async (req, res) => {
   try {
     const organizationId = await requireActiveOrganizationId(req);
 
-    const notifications = await Notification.find({
-      userId: req.user._id,
-      organizationId
-    })
-      .sort({ createdAt: -1 })
-      .limit(20);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
 
-    res.json({ notifications });
+    const [data, totalRecords] = await Promise.all([
+      Notification.find({
+        userId: req.user._id,
+        organizationId
+      })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Notification.countDocuments({
+        userId: req.user._id,
+        organizationId
+      })
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    res.json({
+      data,
+      page,
+      limit,
+      totalRecords,
+      totalPages
+    });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }

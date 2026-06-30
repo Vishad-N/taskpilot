@@ -19,6 +19,7 @@ import {
   Stop,
   ArrowSquareOut,
   IdentificationCard,
+  ChartBar,
 } from "@phosphor-icons/react";
 
 type SidebarProps = {
@@ -249,6 +250,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
           { name: "My Tasks", href: "/my-tasks", icon: CheckSquare },
           { name: "Team", href: "/users/team", icon: Users },
           { name: "Activity", href: "/activity", icon: Pulse },
+          { name: "Reports", href: "/reports", icon: ChartBar },
         ]
       : []),
     { name: "Notifications", href: "/notifications", icon: Bell },

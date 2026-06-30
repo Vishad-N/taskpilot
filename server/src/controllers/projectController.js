@@ -72,13 +72,27 @@ export const getOrganizationProjects = async (req, res) => {
       }
     }
 
-    const projects = await Project.find(query).populate(
-      "teamMembers",
-      "name email role"
-    );
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
+
+    const [data, totalRecords] = await Promise.all([
+      Project.find(query)
+        .populate("teamMembers", "name email role")
+        .sort({ _id: -1 })
+        .skip(skip)
+        .limit(limit),
+      Project.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
 
     res.json({
-      projects
+      data,
+      page,
+      limit,
+      totalRecords,
+      totalPages
     });
 
   } catch (error) {

@@ -4,6 +4,7 @@ import { requireActiveOrganizationId } from "../utils/organizationScope.js";
 import User from "../models/User.js";
 import ExcelJS from "exceljs";
 import NotificationService from "../services/notificationService.js";
+import { getIO } from "../services/socketHandler.js";
 
 const OFFICE_LAT = 22.736024;
 const OFFICE_LNG = 75.902866;
@@ -100,13 +101,19 @@ export const clockIn = async (req, res) => {
           reason: "Late clock-in attempt after 12:00 PM",
         });
 
+        const finalRecord = await Attendance.findById(existingAttendance._id).populate("userId", "name email");
+        getIO().to(`org:${organizationId}`).emit("attendance_updated", finalRecord);
+
         return res.status(201).json({
           message: "Clocked in late. You are marked Absent. A correction request has been sent to the admin.",
-          attendance: existingAttendance
+          attendance: finalRecord
         });
       }
 
-      return res.status(201).json({ message: "Clocked in successfully.", attendance: existingAttendance });
+      const finalRecord = await Attendance.findById(existingAttendance._id).populate("userId", "name email");
+      getIO().to(`org:${organizationId}`).emit("attendance_updated", finalRecord);
+
+      return res.status(201).json({ message: "Clocked in successfully.", attendance: finalRecord });
     }
 
     const attendance = await Attendance.create({
@@ -128,13 +135,19 @@ export const clockIn = async (req, res) => {
         reason: "Late clock-in attempt after 12:00 PM",
       });
 
+      const finalAttendance = await Attendance.findById(attendance._id).populate("userId", "name email");
+      getIO().to(`org:${organizationId}`).emit("attendance_updated", finalAttendance);
+
       return res.status(201).json({
         message: "Clocked in late. You are marked Absent. A correction request has been sent to the admin.",
-        attendance
+        attendance: finalAttendance
       });
     }
 
-    res.status(201).json({ message: "Clocked in successfully.", attendance });
+    const finalAttendance = await Attendance.findById(attendance._id).populate("userId", "name email");
+    getIO().to(`org:${organizationId}`).emit("attendance_updated", finalAttendance);
+
+    res.status(201).json({ message: "Clocked in successfully.", attendance: finalAttendance });
   } catch (error) {
     console.error("Clock In Error:", error);
     res.status(500).json({ message: "Server error during clock in." });
@@ -171,7 +184,11 @@ export const clockOut = async (req, res) => {
 
     await attendance.save();
 
-    res.json({ message: "Clocked out successfully.", attendance });
+    const organizationId = await requireActiveOrganizationId(req);
+    const finalAttendance = await Attendance.findById(attendance._id).populate("userId", "name email");
+    getIO().to(`org:${organizationId}`).emit("attendance_updated", finalAttendance);
+
+    res.json({ message: "Clocked out successfully.", attendance: finalAttendance });
   } catch (error) {
     console.error("Clock Out Error:", error);
     res.status(500).json({ message: "Server error during clock out." });
@@ -320,12 +337,29 @@ export const getCorrectionRequests = async (req, res) => {
   try {
     const organizationId = await requireActiveOrganizationId(req);
 
-    const requests = await AttendanceCorrectionRequest.find({ organizationId })
-      .populate("userId", "name email")
-      .populate("attendanceId")
-      .sort({ createdAt: -1 });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
 
-    res.json({ requests });
+    const [data, totalRecords] = await Promise.all([
+      AttendanceCorrectionRequest.find({ organizationId })
+        .populate("userId", "name email")
+        .populate("attendanceId")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      AttendanceCorrectionRequest.countDocuments({ organizationId })
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    res.json({
+      data,
+      page,
+      limit,
+      totalRecords,
+      totalPages
+    });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch correction requests." });
   }
@@ -388,6 +422,9 @@ export const updateCorrectionRequest = async (req, res) => {
         }
 
         await attendance.save();
+
+        const finalAttendance = await Attendance.findById(attendance._id).populate("userId", "name email");
+        getIO().to(`org:${request.organizationId}`).emit("attendance_updated", finalAttendance);
       }
     }
 

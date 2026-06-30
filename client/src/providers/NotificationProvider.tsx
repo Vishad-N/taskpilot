@@ -25,7 +25,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     } catch (e) {
       console.error("Invalid NEXT_PUBLIC_API_URL for socket:", backendUrl);
     }
-    
+
     const socket: Socket = io(backendUrl || undefined, {
       withCredentials: true,
       transports: ["websocket", "polling"],
@@ -95,6 +95,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     socket.on("task_updated", (task) => {
       playSound();
       window.dispatchEvent(new CustomEvent("taskpilot:task_updated", { detail: task }));
+    });
+
+    socket.on("attendance_updated", (attendance) => {
+      // You don't necessarily need to play a sound for every attendance update
+      window.dispatchEvent(new CustomEvent("taskpilot:attendance_updated", { detail: attendance }));
     });
 
     socket.on("task_deleted", (data) => {

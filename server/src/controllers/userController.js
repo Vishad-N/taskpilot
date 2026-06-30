@@ -35,12 +35,26 @@ const validateOrganizations = async (organizationIds = []) => {
 export const getPendingUsers = async (req, res) => {
   try {
 
-    const users = await User.find({
-      status: "pending"
-    });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
+
+    const query = { status: "pending" };
+
+    const [data, totalRecords] = await Promise.all([
+      User.find(query).select("-password").sort({ createdAt: -1 }).skip(skip).limit(limit),
+      User.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
 
     res.json({
-      users
+      success: true,
+      users: data,
+      page,
+      limit,
+      totalRecords,
+      totalPages
     });
 
   } catch (error) {
@@ -115,17 +129,36 @@ export const getTeamUsers = async (req, res) => {
   try {
     const orgId = await requireActiveOrganizationId(req);
 
-    const users = await User.find({
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
+
+    const query = {
       status: "approved",
       $or: [
         { organizationId: orgId },
         { allowedOrganizations: orgId }
       ]
-    })
-      .select("name email role status isActive organizationId")
-      .sort({ name: 1 });
+    };
 
-    res.json({ users });
+    const [data, totalRecords] = await Promise.all([
+      User.find(query)
+        .select("name email role status isActive organizationId")
+        .sort({ name: 1 })
+        .skip(skip)
+        .limit(limit),
+      User.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    res.json({
+      users: data,
+      page,
+      limit,
+      totalRecords,
+      totalPages
+    });
 
   } catch (error) {
     res.status(error.status || 500).json({
@@ -163,16 +196,54 @@ export const getAssignableUsers = async (req, res) => {
   }
 };
 
-export const getAllUsers = async (_req, res) => {
+export const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find({})
-      .select("-password")
-      .populate("organizationId", "name")
-      .populate("allowedOrganizations", "name")
-      .populate("projectIds", "name")
-      .sort({ createdAt: -1 });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
 
-    res.json({ users });
+    const { search, role, status, organizationId, isActive } = req.query;
+
+    const query = {};
+
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } }
+      ];
+    }
+    if (role && role !== "all") query.role = role;
+    if (status && status !== "all") query.status = status;
+    if (isActive && isActive !== "all") query.isActive = isActive === "active";
+    if (organizationId && organizationId !== "all") {
+      if (organizationId === "none") {
+        query.organizationId = null;
+      } else {
+        query.organizationId = organizationId;
+      }
+    }
+
+    const [users, totalRecords] = await Promise.all([
+      User.find(query)
+        .select("-password")
+        .populate("organizationId", "name")
+        .populate("allowedOrganizations", "name")
+        .populate("projectIds", "name")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      User.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    res.json({
+      data: users,
+      page,
+      limit,
+      totalRecords,
+      totalPages
+    });
   } catch (error) {
     res.status(500).json({ message: "Failed to load users", error: error.message });
   }

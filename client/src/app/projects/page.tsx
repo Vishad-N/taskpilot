@@ -9,6 +9,8 @@ import SoftLoader from "@/components/ui/SoftLoader";
 import { useToast } from "@/components/ui/ToastProvider";
 import { AnimatePresence, motion } from "framer-motion";
 import { PencilSimple, Trash } from "@phosphor-icons/react";
+import Pagination from "@/components/ui/Pagination";
+import { usePaginationLimit } from "@/hooks/usePaginationLimit";
 
 interface Project {
   _id: string;
@@ -20,6 +22,11 @@ export default function ProjectsPage() {
   const router = useRouter();
   const { user } = useMe();
   const { showToast, dismissToast } = useToast();
+
+  const limit = usePaginationLimit();
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [name, setName] = useState("");
@@ -39,8 +46,10 @@ export default function ProjectsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get("/projects/org-projects");
-      setProjects(res.data.projects ?? []);
+      const res = await api.get(`/projects/org-projects?page=${page}&limit=${limit}`);
+      setProjects(res.data.data ?? []);
+      setTotalPages(res.data.totalPages ?? 1);
+      setTotalRecords(res.data.totalRecords ?? 0);
     } catch {
       setError("Failed to load projects");
     } finally {
@@ -50,7 +59,7 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     fetchProjects();
-  }, []);
+  }, [page, limit]);
 
   const handleCreate = async () => {
     if (!name.trim()) return;
@@ -280,6 +289,16 @@ export default function ProjectsPage() {
             </div>
           ))}
         </div>
+      )}
+
+      {!loading && !error && projects.length > 0 && (
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalRecords={totalRecords}
+          limit={limit}
+          onPageChange={setPage}
+        />
       )}
 
       <AnimatePresence>

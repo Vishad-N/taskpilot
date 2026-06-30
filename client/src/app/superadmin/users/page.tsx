@@ -3,6 +3,8 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import api from "@/services/api";
+import Pagination from "@/components/ui/Pagination";
+import { usePaginationLimit } from "@/hooks/usePaginationLimit";
 
 type Organization = {
   _id: string;
@@ -85,17 +87,34 @@ export default function SuperAdminUsersPage() {
   const [saving, setSaving] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
   const [orgProjects, setOrgProjects] = useState<Project[]>([]);
+  
+  const [page, setPage] = useState(1);
+  const limit = usePaginationLimit();
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (currentPage = 1) => {
     try {
       setLoading(true);
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: limit.toString(),
+        search,
+        role: roleFilter,
+        status: statusFilter,
+        organizationId: orgFilter,
+        isActive: activityFilter
+      });
+
       const [usersRes, orgsRes] = await Promise.all([
-        api.get("/users/all"),
+        api.get(`/users/all?${params.toString()}`),
         api.get("/organization")
       ]);
 
-      const nextUsers = usersRes.data.users ?? [];
+      const nextUsers = usersRes.data.data ?? usersRes.data.users ?? [];
       setUsers(nextUsers);
+      setTotalPages(usersRes.data.totalPages ?? 1);
+      setTotalRecords(usersRes.data.totalRecords ?? 0);
       setOrgs(orgsRes.data.organizations ?? []);
       setSelectedUserId((current) =>
         current && nextUsers.some((user: ManagedUser) => user._id === current)
@@ -107,37 +126,22 @@ export default function SuperAdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [limit, search, roleFilter, statusFilter, orgFilter, activityFilter]);
+
+  useEffect(() => {
+    // Reset page to 1 on filter change
+    setPage(1);
+  }, [search, roleFilter, statusFilter, orgFilter, activityFilter]);
 
   useEffect(() => {
     const run = async () => {
-      await loadData();
+      await loadData(page);
     };
 
     void run();
-  }, [loadData]);
+  }, [loadData, page]);
 
-  const filteredUsers = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    return users.filter((user) => {
-      const matchesSearch =
-        !query ||
-        user.name.toLowerCase().includes(query) ||
-        user.email.toLowerCase().includes(query) ||
-        (user.organizationId?.name ?? "").toLowerCase().includes(query);
-
-      const matchesRole = roleFilter === "all" || user.role === roleFilter;
-      const matchesStatus = statusFilter === "all" || user.status === statusFilter;
-      const matchesOrg =
-        orgFilter === "all" || (orgFilter === "none" ? !user.organizationId?._id : user.organizationId?._id === orgFilter);
-      const matchesActivity =
-        activityFilter === "all" ||
-        (activityFilter === "active" ? user.isActive : !user.isActive);
-
-      return matchesSearch && matchesRole && matchesStatus && matchesOrg && matchesActivity;
-    });
-  }, [activityFilter, orgFilter, roleFilter, search, statusFilter, users]);
+  const filteredUsers = users;
 
   const selectedUser = useMemo(
     () => users.find((user) => user._id === selectedUserId) ?? null,
@@ -239,12 +243,10 @@ export default function SuperAdminUsersPage() {
 
   const stats = useMemo(
     () => [
-      { label: "Total Users", value: users.length },
-      { label: "Approved", value: users.filter((user) => user.status === "approved").length },
-      { label: "Pending", value: users.filter((user) => user.status === "pending").length },
-      { label: "Inactive", value: users.filter((user) => !user.isActive).length }
+      { label: "Total Users", value: totalRecords },
+      { label: "Current Page Users", value: users.length },
     ],
-    [users]
+    [users, totalRecords]
   );
 
   return (
@@ -385,6 +387,17 @@ export default function SuperAdminUsersPage() {
                 })
               )}
             </div>
+
+            {totalPages > 1 && !loading && (
+              <div className="mt-8">
+                <Pagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                  totalRecords={totalRecords}
+                />
+              </div>
+            )}
           </div>
 
           <div className="rounded-3xl border border-[var(--card-border)] bg-[var(--surface)] p-6">

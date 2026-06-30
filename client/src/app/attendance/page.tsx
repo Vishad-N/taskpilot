@@ -7,6 +7,8 @@ import { useMe } from "@/hooks/useMe";
 import { motion } from "framer-motion";
 import SoftLoader from "@/components/ui/SoftLoader";
 import ClockInOutCard from "@/components/attendance/ClockInOutCard";
+import Pagination from "@/components/ui/Pagination";
+import { usePaginationLimit } from "@/hooks/usePaginationLimit";
 
 export default function AttendancePage() {
   const { user } = useMe();
@@ -16,8 +18,10 @@ export default function AttendancePage() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [requests, setRequests] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("my"); // 'my', 'overview', 'requests', 'sheet'
-  const todayStr = new Date().toISOString().split("T")[0];
-  const [selectedSheetDate, setSelectedSheetDate] = useState(todayStr);
+  const [orgUsers, setOrgUsers] = useState<any[]>([]);
+  const [sheetAttendance, setSheetAttendance] = useState<any[]>([]);
+  const [currentDateStr, setCurrentDateStr] = useState(new Date().toISOString().split("T")[0]);
+  const [selectedSheetDate, setSelectedSheetDate] = useState(currentDateStr);
 
   // Correction Request Modal State
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -33,6 +37,12 @@ export default function AttendancePage() {
   const [exportEmployeeId, setExportEmployeeId] = useState("");
   const [exporting, setExporting] = useState(false);
 
+  // Pagination for requests
+  const [requestsPage, setRequestsPage] = useState(1);
+  const limit = usePaginationLimit();
+  const [requestsTotalPages, setRequestsTotalPages] = useState(1);
+  const [requestsTotalRecords, setRequestsTotalRecords] = useState(0);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
@@ -40,31 +50,76 @@ export default function AttendancePage() {
         const myRes = await api.get("/attendance/my");
         setMyAttendance(myRes.data.attendance || []);
       } else if (user?.role === "admin" || user?.role === "superadmin") {
-        const [myRes, allRes, statRes, reqRes] = await Promise.all([
+        const [myRes, allRes, statRes, reqRes, usersRes] = await Promise.all([
           api.get("/attendance/my"),
           api.get("/attendance/all"),
           api.get("/attendance/analytics"),
-          api.get("/attendance/correction-requests")
+          api.get(`/attendance/correction-requests?page=${requestsPage}&limit=${limit}`),
+          api.get("/users/assignable")
         ]);
         setMyAttendance(myRes.data.attendance || []);
         setAllAttendance(allRes.data.attendance || []);
         setAnalytics(statRes.data || null);
-        setRequests(reqRes.data.requests || []);
+        setRequests((reqRes.data.data ?? reqRes.data.requests) || []);
+        setRequestsTotalPages(reqRes.data.totalPages ?? 1);
+        setRequestsTotalRecords(reqRes.data.totalRecords ?? 0);
+        setOrgUsers(usersRes.data.users || []);
       }
     } catch (e) {
       console.error("Failed to load attendance", e);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, limit, requestsPage]);
 
   useEffect(() => {
     if (user) loadData();
   }, [user, loadData]);
 
-  const attendanceToday = myAttendance.find(a => a.attendanceDate === todayStr);
-
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+
+  const loadSheetData = useCallback(async () => {
+    if (!isAdmin || !selectedSheetDate) return;
+    try {
+      const res = await api.get(`/attendance/all?date=${selectedSheetDate}`);
+      setSheetAttendance(res.data.attendance || []);
+    } catch (e) {
+      console.error("Failed to load sheet attendance", e);
+    }
+  }, [isAdmin, selectedSheetDate]);
+
+  useEffect(() => {
+    if (user && isAdmin) loadSheetData();
+  }, [user, isAdmin, selectedSheetDate, loadSheetData]);
+
+  useEffect(() => {
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const msUntilMidnight = tomorrow.getTime() - now.getTime();
+
+    const timer = setTimeout(() => {
+      const newTodayStr = new Date().toISOString().split("T")[0];
+      setCurrentDateStr(newTodayStr);
+      setSelectedSheetDate(prev => prev === currentDateStr ? newTodayStr : prev);
+      loadData();
+    }, msUntilMidnight + 1000); // 1 second after midnight to ensure date rollover
+
+    return () => clearTimeout(timer);
+  }, [currentDateStr, loadData]);
+
+  useEffect(() => {
+    const handleAttendanceUpdate = () => {
+      loadData();
+      if (isAdmin) loadSheetData();
+    };
+
+    window.addEventListener("taskpilot:attendance_updated", handleAttendanceUpdate);
+    return () => {
+      window.removeEventListener("taskpilot:attendance_updated", handleAttendanceUpdate);
+    };
+  }, [loadData, isAdmin, loadSheetData]);
+
+  const attendanceToday = myAttendance.find(a => a.attendanceDate === currentDateStr);
 
   const submitCorrection = async () => {
     try {
@@ -80,6 +135,7 @@ export default function AttendancePage() {
       setReqOut("");
       alert("Correction request submitted!");
       loadData();
+      if (isAdmin) loadSheetData();
     } catch (e: any) {
       alert(e.response?.data?.message || "Failed to submit request.");
     }
@@ -89,6 +145,7 @@ export default function AttendancePage() {
     try {
       await api.put(`/attendance/correction-requests/${id}`, { status });
       loadData();
+      if (isAdmin) loadSheetData();
     } catch (e) {
       alert("Failed to update request.");
     }
@@ -232,7 +289,7 @@ export default function AttendancePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {allAttendance.filter(a => a.attendanceDate === todayStr).map(record => (
+                      {allAttendance.filter(a => a.attendanceDate === currentDateStr).map(record => (
                         <tr key={record._id} className="border-b border-white/5 hover:bg-white/[0.02]">
                           <td className="px-4 py-4 font-bold text-gray-300">{record.userId?.name || 'Unknown'}</td>
                           <td className="px-4 py-4">{new Date(record.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
@@ -291,6 +348,17 @@ export default function AttendancePage() {
                   ))}
                 </tbody>
               </table>
+
+              {requestsTotalPages > 1 && (
+                <div className="mt-8">
+                  <Pagination
+                    currentPage={requestsPage}
+                    totalPages={requestsTotalPages}
+                    onPageChange={setRequestsPage}
+                    totalRecords={requestsTotalRecords}
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -317,29 +385,51 @@ export default function AttendancePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {allAttendance
-                      .filter(a => a.attendanceDate === selectedSheetDate && (a.status === "Present" || a.status === "Half Day"))
-                      .map(record => (
-                      <tr key={record._id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                        <td className="px-4 py-4 font-bold text-gray-300">{record.userId?.name || 'Unknown'}</td>
-                        <td className="px-4 py-4">{new Date(record.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                        <td className="px-4 py-4">{record.clockOut ? new Date(record.clockOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : <span className="text-emerald-400 animate-pulse text-xs">Active</span>}</td>
-                        <td className="px-4 py-4">{record.totalHours ? record.totalHours.toFixed(2) + 'h' : '-'}</td>
-                        <td className="px-4 py-4">
-                            <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
-                            record.status === "Present" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" 
-                            : record.status === "Half Day" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                            : record.status === "Weekly Off" ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                            : "bg-red-500/10 text-red-400 border border-red-500/20"
-                          }`}>
-                            {record.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    {allAttendance.filter(a => a.attendanceDate === selectedSheetDate && (a.status === "Present" || a.status === "Half Day")).length === 0 && (
+                    {orgUsers.length > 0 ? orgUsers.map(user => {
+                      const record = sheetAttendance.find(a => a.userId?._id === user._id);
+                      
+                      let displayStatus = "No Record";
+                      let statusClass = "bg-gray-500/10 text-gray-400 border-gray-500/20";
+                      
+                      if (record?.status) {
+                        displayStatus = record.status;
+                        if (record.status === "Present") statusClass = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+                        else if (record.status === "Half Day") statusClass = "bg-amber-500/10 text-amber-400 border-amber-500/20";
+                        else if (record.status === "Weekly Off") statusClass = "bg-blue-500/10 text-blue-400 border-blue-500/20";
+                        else statusClass = "bg-red-500/10 text-red-400 border-red-500/20";
+                      } else {
+                        // Check if it's past 12 PM for this date
+                        const selectedDate = new Date(selectedSheetDate);
+                        const todayDate = new Date(currentDateStr);
+                        
+                        selectedDate.setHours(0,0,0,0);
+                        todayDate.setHours(0,0,0,0);
+                        
+                        const isPastDate = selectedDate < todayDate;
+                        const isTodayPast12 = selectedDate.getTime() === todayDate.getTime() && new Date().getHours() >= 12;
+                        
+                        if (isPastDate || isTodayPast12) {
+                          displayStatus = "Absent";
+                          statusClass = "bg-red-500/10 text-red-400 border-red-500/20";
+                        }
+                      }
+
+                      return (
+                        <tr key={user._id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                          <td className="px-4 py-4 font-bold text-gray-300">{user.name}</td>
+                          <td className="px-4 py-4">{record?.clockIn ? new Date(record.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                          <td className="px-4 py-4">{record?.clockOut ? new Date(record.clockOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : record?.clockIn ? <span className="text-emerald-400 animate-pulse text-xs">Active</span> : '-'}</td>
+                          <td className="px-4 py-4">{record?.totalHours ? record.totalHours.toFixed(2) + 'h' : '-'}</td>
+                          <td className="px-4 py-4">
+                            <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${statusClass}`}>
+                              {displayStatus}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    }) : (
                       <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-gray-500 font-medium">No approved attendance records found for this date.</td>
+                        <td colSpan={5} className="px-4 py-8 text-center text-gray-500 font-medium">No users found in the organization.</td>
                       </tr>
                     )}
                   </tbody>

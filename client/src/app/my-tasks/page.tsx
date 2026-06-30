@@ -9,6 +9,7 @@ import { CheckSquare, Clock, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import SoftLoader from "@/components/ui/SoftLoader";
+import { usePaginationLimit } from "@/hooks/usePaginationLimit";
 
 type Task = {
   _id: string;
@@ -55,23 +56,37 @@ export default function MyTasksPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState<Record<string, boolean>>({});
+  
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const limit = usePaginationLimit();
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (currentPage: number, append: boolean) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get("/tasks/my-tasks");
-      setTasks(res.data.tasks ?? []);
+      const res = await api.get(`/tasks/my-tasks?page=${currentPage}&limit=${limit}`);
+      setTasks(prev => append ? [...prev, ...(res.data.data ?? [])] : (res.data.data ?? []));
+      setTotalPages(res.data.totalPages ?? 1);
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [limit]);
 
   useEffect(() => {
-    load();
+    setPage(1);
+    load(1, false);
   }, [load]);
+
+  const handleLoadMore = () => {
+    if (page < totalPages) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      load(nextPage, true);
+    }
+  };
 
   useEffect(() => {
     const handleTaskCreated = (e: Event) => {
@@ -283,6 +298,17 @@ export default function MyTasksPage() {
               </div>
             </motion.div>
           ))}
+        </div>
+      )}
+
+      {page < totalPages && !loading && (
+        <div className="mt-8 flex justify-center">
+          <button
+            onClick={handleLoadMore}
+            className="px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+          >
+            Load More
+          </button>
         </div>
       )}
 

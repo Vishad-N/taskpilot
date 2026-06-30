@@ -3,6 +3,8 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import api from "@/services/api";
+import Pagination from "@/components/ui/Pagination";
+import { usePaginationLimit } from "@/hooks/usePaginationLimit";
 
 type Organization = {
   _id: string;
@@ -51,17 +53,22 @@ export default function SuperAdminApprovalsPage() {
   const [error, setError] = useState<string | null>(null);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
 
+  const [page, setPage] = useState(1);
+  const limit = usePaginationLimit();
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+
   const buildDefaultDraft = (organizationId: string): ApprovalDraft => ({
     role: "team",
     organizationId,
     allowedOrganizations: []
   });
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (currentPage = 1) => {
     try {
       setLoading(true);
       const [pendingRes, orgsRes] = await Promise.all([
-        api.get("/users/pending"),
+        api.get(`/users/pending?page=${currentPage}&limit=${limit}`),
         api.get("/organization")
       ]);
 
@@ -70,6 +77,8 @@ export default function SuperAdminApprovalsPage() {
       const pendingUsers = pendingRes.data.users ?? [];
 
       setUsers(pendingUsers);
+      setTotalPages(pendingRes.data.totalPages ?? 1);
+      setTotalRecords(pendingRes.data.totalRecords ?? 0);
       setOrgs(organizations);
       setDrafts((current) => {
         const nextDrafts = { ...current };
@@ -87,15 +96,15 @@ export default function SuperAdminApprovalsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [limit]);
 
   useEffect(() => {
     const run = async () => {
-      await loadData();
+      await loadData(page);
     };
 
     void run();
-  }, [loadData]);
+  }, [loadData, page]);
 
   const filteredUsers = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -346,6 +355,17 @@ export default function SuperAdminApprovalsPage() {
                 </form>
               );
             })
+          )}
+
+          {totalPages > 1 && !loading && (
+            <div className="mt-8">
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                totalRecords={totalRecords}
+              />
+            </div>
           )}
         </div>
       </div>

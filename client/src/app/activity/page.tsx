@@ -5,6 +5,8 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import api from "@/services/api";
 import { Activity, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import Pagination from "@/components/ui/Pagination";
+import { usePaginationLimit } from "@/hooks/usePaginationLimit";
 
 type ActivityLog = {
   _id: string;
@@ -45,11 +47,18 @@ export default function ActivityPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchLogs = async () => {
+  const [page, setPage] = useState(1);
+  const limit = usePaginationLimit();
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+
+  const fetchLogs = async (currentPage = 1) => {
     setLoading(true);
     try {
-      const res = await api.get("/activity/feed");
-      setLogs(res.data.logs ?? []);
+      const res = await api.get(`/activity/feed?page=${currentPage}&limit=${limit}`);
+      setLogs(res.data.data ?? res.data.logs ?? []);
+      setTotalPages(res.data.totalPages ?? 1);
+      setTotalRecords(res.data.totalRecords ?? 0);
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Failed to fetch activity logs"));
     } finally {
@@ -58,8 +67,8 @@ export default function ActivityPage() {
   };
 
   useEffect(() => {
-    fetchLogs();
-  }, []);
+    fetchLogs(page);
+  }, [page, limit]);
 
   const formatAction = (action: string) => {
     if (action.includes("moved task to")) return "Status Update";
@@ -153,6 +162,17 @@ export default function ActivityPage() {
               <div className="text-center py-20 bg-[#11161D] rounded-3xl border border-dashed border-gray-800">
                 <Activity className="w-12 h-12 text-gray-700 mx-auto mb-4" />
                 <p className="text-gray-500 font-medium">No activity recorded yet.</p>
+              </div>
+            )}
+
+            {totalPages > 1 && (
+              <div className="mt-8">
+                <Pagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                  totalRecords={totalRecords}
+                />
               </div>
             )}
           </div>

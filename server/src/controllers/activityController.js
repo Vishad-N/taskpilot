@@ -5,15 +5,27 @@ export const getActivityFeed = async (req, res) => {
   try {
     const organizationId = await requireActiveOrganizationId(req);
 
-    const logs = await ActivityLog.find({
-      organizationId
-    })
-      .populate("userId", "name email role")
-      .sort({ createdAt: -1 })
-      .limit(20);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
+
+    const [data, totalRecords] = await Promise.all([
+      ActivityLog.find({ organizationId })
+        .populate("userId", "name email role")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      ActivityLog.countDocuments({ organizationId })
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
 
     res.json({
-      logs
+      data,
+      page,
+      limit,
+      totalRecords,
+      totalPages
     });
 
   } catch (error) {
@@ -26,13 +38,28 @@ export const getProjectActivity = async (req, res) => {
     const { projectId } = req.params;
     const organizationId = await requireActiveOrganizationId(req);
 
-    const logs = await ActivityLog.find({
-      organizationId,
-      projectId
-    })
-      .populate("userId", "name")
-      .sort({ createdAt: -1 });
-    res.json({ logs });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
+
+    const [data, totalRecords] = await Promise.all([
+      ActivityLog.find({ organizationId, projectId })
+        .populate("userId", "name")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      ActivityLog.countDocuments({ organizationId, projectId })
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    res.json({
+      data,
+      page,
+      limit,
+      totalRecords,
+      totalPages
+    });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }

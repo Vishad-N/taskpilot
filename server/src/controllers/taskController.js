@@ -671,18 +671,38 @@ export const getMyTasks = async (req, res) => {
   try {
     const organizationId = await requireActiveOrganizationId(req);
 
-    const tasks = await populateAssignees(Task.find({
+    const query = {
       organizationId,
       $or: [
         { createdBy: req.user._id },
         { assignedTo: req.user._id },
         { assignedToUsers: req.user._id }
       ]
-    }))
-      .populate("createdBy", "name email")
-      .populate("projectId", "name");
+    };
 
-    res.json({ tasks });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
+
+    const [data, totalRecords] = await Promise.all([
+      populateAssignees(Task.find(query))
+        .populate("createdBy", "name email")
+        .populate("projectId", "name")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Task.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    res.json({
+      data,
+      page,
+      limit,
+      totalRecords,
+      totalPages
+    });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }
@@ -706,12 +726,29 @@ export const getTasksByMember = async (req, res) => {
       query.status = status;
     }
 
-    const tasks = await populateAssignees(Task.find(query))
-      .sort({ createdAt: -1 })
-      .populate("createdBy", "name email")
-      .populate("projectId", "name");
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
 
-    res.json({ tasks });
+    const [data, totalRecords] = await Promise.all([
+      populateAssignees(Task.find(query))
+        .sort({ createdAt: -1 })
+        .populate("createdBy", "name email")
+        .populate("projectId", "name")
+        .skip(skip)
+        .limit(limit),
+      Task.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    res.json({
+      data,
+      page,
+      limit,
+      totalRecords,
+      totalPages
+    });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }
@@ -841,12 +878,29 @@ export const getOrganizationTasks = async (req, res) => {
       });
     }
 
-    const tasks = await populateAssignees(Task.find(query))
-      .sort({ createdAt: -1 })
-      .populate("createdBy", "name email")
-      .populate("projectId", "name");
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
 
-    res.json({ tasks });
+    const [data, totalRecords] = await Promise.all([
+      populateAssignees(Task.find(query))
+        .sort({ createdAt: -1 })
+        .populate("createdBy", "name email")
+        .populate("projectId", "name")
+        .skip(skip)
+        .limit(limit),
+      Task.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    res.json({
+      data,
+      page,
+      limit,
+      totalRecords,
+      totalPages
+    });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }
@@ -857,7 +911,7 @@ export const searchTasks = async (req, res) => {
     const organizationId = await requireActiveOrganizationId(req);
     const rawQuery = typeof req.query.q === "string" ? req.query.q.trim() : "";
     const status = typeof req.query.status === "string" ? req.query.status.trim() : "";
-    const limit = Math.min(
+    const limitParsed = Math.min(
       100,
       Math.max(1, Number.parseInt(String(req.query.limit ?? "50"), 10) || 50)
     );
@@ -905,13 +959,29 @@ export const searchTasks = async (req, res) => {
       });
     }
 
-    const tasks = await populateAssignees(Task.find(query))
-      .populate("createdBy", "name email")
-      .populate("projectId", "name")
-      .sort({ updatedAt: -1, createdAt: -1 })
-      .limit(limit);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
 
-    res.json({ tasks });
+    const [data, totalRecords] = await Promise.all([
+      populateAssignees(Task.find(query))
+        .populate("createdBy", "name email")
+        .populate("projectId", "name")
+        .sort({ updatedAt: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Task.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    res.json({
+      data,
+      page,
+      limit,
+      totalRecords,
+      totalPages
+    });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }
@@ -948,11 +1018,29 @@ export const getProjectTasks = async (req, res) => {
       });
     }
 
-    const tasks = await populateAssignees(Task.find(query))
-      .populate("createdBy", "name email")
-      .populate("projectId", "name");
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
 
-    res.json({ tasks });
+    const [data, totalRecords] = await Promise.all([
+      populateAssignees(Task.find(query))
+        .populate("createdBy", "name email")
+        .populate("projectId", "name")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Task.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    res.json({
+      data,
+      page,
+      limit,
+      totalRecords,
+      totalPages
+    });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }
@@ -971,10 +1059,28 @@ export const getClientTasks = async (req, res) => {
       query.projectId = { $in: req.user.projectIds };
     }
 
-    const tasks = await populateAssignees(Task.find(query))
-      .populate("projectId", "name");
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 15;
+    const skip = (page - 1) * limit;
 
-    res.json({ tasks });
+    const [data, totalRecords] = await Promise.all([
+      populateAssignees(Task.find(query))
+        .populate("projectId", "name")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Task.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(totalRecords / limit);
+
+    res.json({
+      data,
+      page,
+      limit,
+      totalRecords,
+      totalPages
+    });
   } catch (error) {
     res.status(error.status || 500).json({ error: error.message });
   }

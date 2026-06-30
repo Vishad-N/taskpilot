@@ -13,6 +13,7 @@ import SoftLoader from "@/components/ui/SoftLoader";
 import { useToast } from "@/components/ui/ToastProvider";
 import { PencilSimple, Trash } from "@phosphor-icons/react";
 import Link from "next/link";
+import { usePaginationLimit } from "@/hooks/usePaginationLimit";
 
 type Task = {
   _id: string;
@@ -114,7 +115,12 @@ export default function TasksPage() {
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [updating, setUpdating] = useState<Record<string, boolean>>({});
   const [collapsedCards, setCollapsedCards] = useState<Record<string, boolean>>({});
-  const load = useCallback(async (searchTerm: string) => {
+  
+  const limit = usePaginationLimit();
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const load = useCallback(async (searchTerm: string, currentPage: number, append: boolean) => {
     setLoading(true);
     setError(null);
     try {
@@ -124,46 +130,62 @@ export default function TasksPage() {
         res = await api.get("/tasks/search", {
           params: {
             q: trimmedSearch,
-            ...(status === "all" ? {} : { status })
+            ...(status === "all" ? {} : { status }),
+            page: currentPage,
+            limit
           }
         });
       } else if (user?.role === "client") {
-        res = await api.get("/tasks/client-view");
+        res = await api.get("/tasks/client-view", {
+          params: { page: currentPage, limit }
+        });
       } else if (myTasksOnly) {
-        res = await api.get("/tasks/my-tasks");
+        res = await api.get("/tasks/my-tasks", {
+          params: { page: currentPage, limit }
+        });
       } else if (memberFilter) {
         res = await api.get(`/tasks/by-member/${memberFilter}`, {
-          params: status === "all" ? {} : { status }
+          params: { ...(status === "all" ? {} : { status }), page: currentPage, limit }
         });
       } else {
         res = await api.get("/tasks/org-tasks", {
-          params: status === "all" ? {} : { status }
+          params: { ...(status === "all" ? {} : { status }), page: currentPage, limit }
         });
       }
 
-      let all = res.data.tasks ?? [];
+      let all = res.data.data ?? res.data.tasks ?? [];
       if (status !== "all" && (user?.role === "client" || myTasksOnly)) {
         all = all.filter((t: Task) => t.status === status);
       }
-      setTasks(all);
+      setTasks(prev => append ? [...prev, ...all] : all);
+      setTotalPages(res.data.totalPages ?? 1);
     } catch (e: unknown) {
       setError(getErrorMessage(e, "Failed to load tasks"));
     } finally {
       setLoading(false);
     }
-  }, [status, user?.role, myTasksOnly, memberFilter]);
+  }, [status, user?.role, myTasksOnly, memberFilter, limit]);
 
   useEffect(() => {
     if (user) {
       const timeoutId = window.setTimeout(() => {
-        void load(searchQuery);
+        setPage(1);
+        void load(searchQuery, 1, false);
       }, searchQuery.trim() ? 250 : 0);
 
       return () => {
         window.clearTimeout(timeoutId);
       };
     }
-  }, [load, searchQuery, user]);
+  }, [load, searchQuery, user, status, myTasksOnly, memberFilter, limit]);
+
+  const handleLoadMore = () => {
+    if (page < totalPages) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      load(searchQuery, nextPage, true);
+    }
+  };
 
   useEffect(() => {
     const memberParam = searchParams.get("member") ?? "";
@@ -235,7 +257,8 @@ export default function TasksPage() {
     try {
       await api.post("/tasks/create", formData);
       setShowCreate(false);
-      await load(searchQuery);
+      setPage(1);
+      await load(searchQuery, 1, false);
       setFormData({
         title: "",
         description: "",
@@ -886,6 +909,17 @@ export default function TasksPage() {
             </motion.div>
           )}
         </motion.div>
+      )}
+
+      {page < totalPages && !loading && (
+        <div className="mt-8 flex justify-center pb-8">
+          <button
+            onClick={handleLoadMore}
+            className="px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+          >
+            Load More
+          </button>
+        </div>
       )}
 
       {/* CREATE MODAL */}

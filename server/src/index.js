@@ -26,6 +26,7 @@ import userRoutes from "./routes/users.js";
 import notificationRoutes from "./routes/notification.js";
 import dailyUpdateRoutes from "./routes/dailyUpdates.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
+import reportRoutes from "./routes/reports.js";
 import { initCronJobs } from "./utils/cronJobs.js";
 import { initSocket } from "./services/socketHandler.js";
 import http from "http";
@@ -84,6 +85,7 @@ app.use("/notifications", notificationRoutes);
 app.use("/activity", activityRoutes);
 app.use("/daily-updates", dailyUpdateRoutes);
 app.use("/attendance", attendanceRoutes);
+app.use("/reports", reportRoutes);
 app.get("/", (_req, res) => {
   res.json({ status: "ok", version: "1.0.0" });
 });

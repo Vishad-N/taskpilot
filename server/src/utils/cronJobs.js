@@ -28,12 +28,22 @@ export const initCronJobs = () => {
 
         if (!existingRecord) {
           const statusToApply = isSunday ? "Weekly Off" : "Absent";
-          await Attendance.create({
+          const newRecord = await Attendance.create({
             userId: user._id,
             organizationId: user.organizationId,
             attendanceDate: today,
             status: statusToApply,
           });
+
+          // Fetch the final record with populated user to emit
+          const finalRecord = await Attendance.findById(newRecord._id).populate("userId", "name email");
+          
+          try {
+            const { getIO } = await import("../services/socketHandler.js");
+            getIO().to(`org:${user.organizationId}`).emit("attendance_updated", finalRecord);
+          } catch (err) {
+            console.error("Socket emit failed in cron:", err);
+          }
         }
       }
       console.log(`[Cron] Completed Attendance check.`);

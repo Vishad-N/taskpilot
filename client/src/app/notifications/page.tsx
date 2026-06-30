@@ -7,6 +7,8 @@ import { Bell, Check, Clock, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import SoftLoader from "@/components/ui/SoftLoader";
 import { useToast } from "@/components/ui/ToastProvider";
+import Pagination from "@/components/ui/Pagination";
+import { usePaginationLimit } from "@/hooks/usePaginationLimit";
 
 type Notification = {
   _id: string;
@@ -45,16 +47,23 @@ export default function NotificationsPage() {
   const [markingAll, setMarkingAll] = useState(false);
   const { showToast } = useToast();
 
-  const load = async () => {
+  const [page, setPage] = useState(1);
+  const limit = usePaginationLimit();
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+
+  const load = async (currentPage = 1) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get("/notifications");
-      const allNotifications: Notification[] = res.data.notifications ?? [];
+      const res = await api.get(`/notifications?page=${currentPage}&limit=${limit}`);
+      const allNotifications: Notification[] = res.data.data ?? res.data.notifications ?? [];
       const filtered = allNotifications.filter(
         (n) => !n.message?.includes("moved to pending") && !n.message?.includes("moved to inprogress")
       );
       setItems(filtered);
+      setTotalPages(res.data.totalPages ?? 1);
+      setTotalRecords(res.data.totalRecords ?? 0);
     } catch (e: unknown) {
       setError(getErrorMessage(e, "Failed to load notifications"));
     } finally {
@@ -147,10 +156,10 @@ export default function NotificationsPage() {
   };
 
   useEffect(() => {
-    load();
+    load(page);
 
     const handleNewNotification = () => {
-      load();
+      load(page);
     };
 
     window.addEventListener("taskpilot:new_notification", handleNewNotification);
@@ -158,7 +167,7 @@ export default function NotificationsPage() {
     return () => {
       window.removeEventListener("taskpilot:new_notification", handleNewNotification);
     };
-  }, []);
+  }, [page, limit]);
 
   return (
     <DashboardLayout>
@@ -176,7 +185,7 @@ export default function NotificationsPage() {
             {markingAll ? "Marking..." : "Mark All As Read"}
           </button>
           <button
-            onClick={load}
+            onClick={() => load(page)}
             className="px-4 py-2 text-xs font-bold uppercase tracking-wider bg-white/5 hover:bg-white/10 text-gray-300 rounded-xl transition"
           >
             Refresh
@@ -261,6 +270,17 @@ export default function NotificationsPage() {
 
             {items.length === 0 && (
               <p className="text-sm text-gray-500">No notifications.</p>
+            )}
+
+            {totalPages > 1 && (
+              <div className="mt-8">
+                <Pagination
+                  currentPage={page}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                  totalRecords={totalRecords}
+                />
+              </div>
             )}
           </div>
         )}
