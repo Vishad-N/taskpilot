@@ -164,9 +164,9 @@ export default function SuperAdminUsersPage() {
   useEffect(() => {
     if (editor?.role === "client" && editor?.organizationId) {
       api
-        .get(`/projects/org-projects?organizationId=${editor.organizationId}`)
+        .get(`/projects/org-projects?organizationId=${editor.organizationId}&limit=1000`)
         .then((res) => {
-          setOrgProjects(res.data.projects ?? []);
+          setOrgProjects(res.data.data ?? res.data.projects ?? []);
         })
         .catch((err) => {
           console.error("Failed to fetch projects", err);

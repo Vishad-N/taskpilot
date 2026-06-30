@@ -205,11 +205,11 @@ export default function ClientDashboard() {
       try {
         const [statsRes, projectsRes, tasksRes] = await Promise.all([
           api.get("/dashboard"),
-          api.get("/projects/org-projects"),
+          api.get("/projects/org-projects?limit=1000"),
           api.get("/tasks/client-view"),
         ]);
         setStats(statsRes.data);
-        setProjects(projectsRes.data.projects ?? []);
+        setProjects(projectsRes.data.data ?? projectsRes.data.projects ?? []);
         setTasks(tasksRes.data.tasks ?? []);
       } catch (err) {
         console.error("Failed to load client dashboard", err);

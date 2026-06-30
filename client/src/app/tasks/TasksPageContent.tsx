@@ -204,7 +204,7 @@ export default function TasksPage() {
 
   useEffect(() => {
     if (showCreate && canCreateTasks(user?.role)) {
-      api.get("/projects/org-projects").then((res) => setProjects((res.data.projects ?? []) as ProjectOption[]));
+      api.get("/projects/org-projects?limit=1000").then((res) => setProjects((res.data.data ?? res.data.projects ?? []) as ProjectOption[]));
       api.get("/users/assignable").then((res) => setTeam((res.data.users ?? []) as AssignableUser[]));
     }
   }, [showCreate, user?.role]);

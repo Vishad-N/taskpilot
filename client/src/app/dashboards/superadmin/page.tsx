@@ -101,9 +101,9 @@ export default function SuperAdminDashboard() {
   useEffect(() => {
     if (newUserRole === "client" && newUserOrg) {
       api
-        .get(`/projects/org-projects?organizationId=${newUserOrg}`)
+        .get(`/projects/org-projects?organizationId=${newUserOrg}&limit=1000`)
         .then((res) => {
-          setOrgProjects(res.data.projects ?? []);
+          setOrgProjects(res.data.data ?? res.data.projects ?? []);
         })
         .catch((err) => {
           console.error("Failed to fetch projects", err);
