@@ -88,7 +88,6 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     });
 
     socket.on("task_created", (task) => {
-      playSound();
       window.dispatchEvent(new CustomEvent("taskpilot:task_created", { detail: task }));
     });
 
