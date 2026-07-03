@@ -53,9 +53,19 @@ const userSchema = new mongoose.Schema(
       type: String,
     },
 
+    gender: {
+      type: String,
+      enum: ["male", "female", "not_specified"],
+      default: "not_specified",
+    },
+
     isActive: {
       type: Boolean,
       default: true,
+    },
+    isAccountFrozen: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }

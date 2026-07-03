@@ -32,6 +32,11 @@ const notificationSchema = new mongoose.Schema(
         "task_overdue",
         "attendance_correction_approved",
         "attendance_correction_rejected",
+        "leave_applied",
+        "leave_approved",
+        "leave_rejected",
+        "leave_cancelled",
+        "no_clock_out",
         "system"
       ],
       default: "system"

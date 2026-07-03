@@ -9,7 +9,10 @@ import {
   getCorrectionRequests,
   updateCorrectionRequest,
   getAnalytics,
-  exportAttendance
+  exportAttendance,
+  submitProposedClockOut,
+  getFrozenAccounts,
+  resolveFrozenAccount
 } from "../controllers/attendanceController.js";
 
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -87,6 +90,27 @@ router.put(
   authMiddleware,
   allowRoles("superadmin", "admin"),
   updateAttendance
+);
+
+router.post(
+  "/submit-proposed-time",
+  authMiddleware,
+  allowRoles("superadmin", "admin", "team"),
+  submitProposedClockOut
+);
+
+router.get(
+  "/frozen-accounts",
+  authMiddleware,
+  allowRoles("superadmin", "admin"),
+  getFrozenAccounts
+);
+
+router.post(
+  "/frozen-accounts/:id/resolve",
+  authMiddleware,
+  allowRoles("superadmin", "admin"),
+  resolveFrozenAccount
 );
 
 export default router;

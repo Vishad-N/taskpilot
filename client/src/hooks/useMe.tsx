@@ -15,6 +15,8 @@ export type MeUser = {
   name: string;
   email: string;
   role: "superadmin" | "admin" | "team" | "client";
+  gender?: "male" | "female" | "not_specified";
+  isAccountFrozen?: boolean;
   organizationId?: string;
   allowedOrganizations?: string[];
   activeOrganizationId?: string | null;

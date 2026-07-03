@@ -16,6 +16,7 @@ type TeamMember = {
   email: string;
   role: string;
   status: string;
+  gender?: "male" | "female" | "not_specified";
 };
 
 type Task = {
@@ -294,6 +295,9 @@ export default function TeamManagementPage() {
                 <div className="flex items-center gap-2">
                   <Shield className="w-3.5 h-3.5 text-gray-600" />
                   <span className="text-xs uppercase tracking-widest font-bold text-gray-500">{member.role}</span>
+                  <span className="text-[10px] uppercase tracking-widest font-bold text-gray-600 ml-2">
+                    • {member.gender === "not_specified" ? "-" : member.gender}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] text-emerald-500 font-bold uppercase tracking-widest flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">

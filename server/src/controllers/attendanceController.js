@@ -241,7 +241,7 @@ export const getAllAttendance = async (req, res) => {
     if (user) query.userId = user;
 
     const attendance = await Attendance.find(query)
-      .populate("userId", "name email")
+      .populate("userId", "name email gender")
       .populate("correctedBy", "name")
       .sort({ attendanceDate: -1 });
 
@@ -514,7 +514,7 @@ export const exportAttendance = async (req, res) => {
 
     // Fetch data
     const attendanceRecords = await Attendance.find(query)
-      .populate("userId", "name email role")
+      .populate("userId", "name email role gender")
       .sort({ attendanceDate: 1 });
 
     const requestsQuery = {
@@ -542,7 +542,7 @@ export const exportAttendance = async (req, res) => {
         role: { $ne: "client" }
       };
 
-    const users = await User.find(usersQuery);
+    const users = await User.find(usersQuery).select("name gender");
 
     // Initialize workbook
     const workbook = new ExcelJS.Workbook();
@@ -555,6 +555,7 @@ export const exportAttendance = async (req, res) => {
       { header: "Employee Name", key: "name", width: 25 },
       { header: "Employee Email", key: "email", width: 30 },
       { header: "Role", key: "role", width: 15 },
+      { header: "Gender", key: "gender", width: 15 },
       { header: "Date", key: "date", width: 15 },
       { header: "Clock In", key: "clockIn", width: 20 },
       { header: "Clock Out", key: "clockOut", width: 20 },
@@ -572,6 +573,7 @@ export const exportAttendance = async (req, res) => {
         name: record.userId?.name || "Unknown",
         email: record.userId?.email || "Unknown",
         role: record.userId?.role || "Unknown",
+        gender: record.userId?.gender === "not_specified" ? "-" : (record.userId?.gender || "-"),
         date: record.attendanceDate,
         clockIn: record.clockIn ? new Date(record.clockIn).toLocaleTimeString() : "-",
         clockOut: record.clockOut ? new Date(record.clockOut).toLocaleTimeString() : "-",
@@ -587,6 +589,7 @@ export const exportAttendance = async (req, res) => {
     const summarySheet = workbook.addWorksheet("Monthly Summary");
     summarySheet.columns = [
       { header: "Employee Name", key: "name", width: 25 },
+      { header: "Gender", key: "gender", width: 15 },
       { header: "Total Working Days", key: "workingDays", width: 20 },
       { header: "Days Present", key: "present", width: 15 },
       { header: "Days Absent", key: "absent", width: 15 },
@@ -614,6 +617,7 @@ export const exportAttendance = async (req, res) => {
 
       summarySheet.addRow({
         name: user.name,
+        gender: user.gender === "not_specified" ? "-" : (user.gender || "-"),
         workingDays: daysInMonth,
         present: daysPresent,
         absent: daysAbsent,
@@ -663,5 +667,105 @@ export const exportAttendance = async (req, res) => {
   } catch (error) {
     console.error("Export Error:", error);
     res.status(500).json({ message: "Failed to export attendance." });
+  }
+};
+
+export const submitProposedClockOut = async (req, res) => {
+  try {
+    const { proposedTime, attendanceId } = req.body;
+    
+    if (!proposedTime || !attendanceId) {
+      return res.status(400).json({ message: "Proposed time and attendance ID are required." });
+    }
+
+    const attendance = await Attendance.findOne({ _id: attendanceId, userId: req.user._id });
+    if (!attendance) {
+      return res.status(404).json({ message: "Attendance record not found." });
+    }
+
+    if (attendance.freezeStatus !== "frozen") {
+      return res.status(400).json({ message: "This record is not currently awaiting a proposed time." });
+    }
+
+    attendance.proposedClockOut = new Date(proposedTime);
+    attendance.freezeStatus = "submitted_time";
+    await attendance.save();
+
+    res.json({ message: "Proposed time submitted. Waiting for admin approval.", attendance });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to submit proposed clock out time.", error: error.message });
+  }
+};
+
+export const getFrozenAccounts = async (req, res) => {
+  try {
+    const organizationId = await requireActiveOrganizationId(req);
+
+    const frozenRecords = await Attendance.find({
+      organizationId,
+      freezeStatus: { $in: ["frozen", "submitted_time"] }
+    })
+      .populate("userId", "name email avatar")
+      .sort({ attendanceDate: -1 });
+
+    res.json({ frozenRecords });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch frozen accounts.", error: error.message });
+  }
+};
+
+export const resolveFrozenAccount = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body; // "unfreeze" or "unfreeze_half_day"
+    
+    const attendance = await Attendance.findById(id).populate("userId");
+    if (!attendance) {
+      return res.status(404).json({ message: "Attendance record not found." });
+    }
+
+    if (!["frozen", "submitted_time"].includes(attendance.freezeStatus)) {
+      return res.status(400).json({ message: "This account is not currently frozen." });
+    }
+
+    if (action === "unfreeze") {
+      if (!attendance.proposedClockOut) {
+        return res.status(400).json({ message: "Cannot unfreeze normally without a proposed clock out time. The user must submit it first." });
+      }
+      attendance.clockOut = attendance.proposedClockOut;
+      const diffMs = attendance.clockOut.getTime() - attendance.clockIn.getTime();
+      attendance.totalHours = diffMs / (1000 * 60 * 60);
+      attendance.status = "Present"; 
+      
+      attendance.corrected = true;
+      attendance.correctedBy = req.user._id;
+      attendance.correctionReason = "Resolved missing clock out";
+    } else if (action === "unfreeze_half_day") {
+      // Keep it as Half Day (set by cron), discard proposed time if any
+      attendance.corrected = true;
+      attendance.correctedBy = req.user._id;
+      attendance.correctionReason = "Enforced half-day for missing clock out";
+    } else {
+      return res.status(400).json({ message: "Invalid action." });
+    }
+
+    attendance.freezeStatus = "resolved";
+    await attendance.save();
+
+    // Check if the user has any other currently frozen attendance records
+    const otherFrozen = await Attendance.findOne({
+      userId: attendance.userId._id,
+      freezeStatus: { $in: ["frozen", "submitted_time"] }
+    });
+
+    if (!otherFrozen) {
+      // Unfreeze the user account
+      attendance.userId.isAccountFrozen = false;
+      await attendance.userId.save();
+    }
+
+    res.json({ message: `Account resolved successfully via ${action}.`, attendance });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to resolve frozen account.", error: error.message });
   }
 };

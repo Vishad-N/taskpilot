@@ -34,7 +34,7 @@ export const exportTaskReport = async (req, res) => {
       organizationId,
       isActive: true,
       role: { $ne: "client" }
-    }).select("name email role");
+    }).select("name email role gender");
 
     const usersMap = {};
     for (const u of activeUsers) {

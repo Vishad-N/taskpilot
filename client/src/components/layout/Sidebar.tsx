@@ -20,6 +20,7 @@ import {
   ArrowSquareOut,
   IdentificationCard,
   ChartBar,
+  Calendar,
 } from "@phosphor-icons/react";
 
 type SidebarProps = {
@@ -255,7 +256,15 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
       : []),
     { name: "Notifications", href: "/notifications", icon: Bell },
     ...(user?.role !== "client"
-      ? [{ name: "Attendance", href: "/attendance", icon: IdentificationCard }]
+      ? [
+          { name: "Attendance", href: "/attendance", icon: IdentificationCard },
+          { name: "Leaves", href: "/leaves", icon: Calendar },
+        ]
+      : []),
+    ...(user?.role === "admin" || user?.role === "superadmin"
+      ? [
+          { name: "Leave Settings", href: "/leaves/settings", icon: Calendar },
+        ]
       : []),
   ];
 

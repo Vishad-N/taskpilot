@@ -212,6 +212,11 @@ export const updateMe = async (req, res) => {
 
     const { name, email, password } = req.body;
 
+    // Gender cannot be changed via profile update — use PATCH /auth/me/gender
+    if (req.body.gender !== undefined) {
+      return res.status(403).json({ message: "Gender cannot be modified through profile updates" });
+    }
+
     if (name !== undefined) {
       const normalizedName = String(name).trim();
 
@@ -284,5 +289,53 @@ export const updateMe = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Failed to update profile" });
+  }
+};
+
+export const setMyGender = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const { gender } = req.body;
+
+    if (!gender || !["male", "female"].includes(gender)) {
+      return res.status(400).json({ message: "Gender must be 'male' or 'female'" });
+    }
+
+    if (user.gender !== "not_specified") {
+      return res.status(403).json({ message: "Gender has already been set and cannot be changed" });
+    }
+
+    user.gender = gender;
+    await user.save();
+
+    const organizationIds = await getAccessibleOrganizationIds({ ...req, user });
+    const organizations = organizationIds.length
+      ? await Organization.find({ _id: { $in: organizationIds } })
+          .select("_id name")
+          .sort({ name: 1 })
+      : [];
+
+    let activeOrganizationId = null;
+    try {
+      activeOrganizationId = await resolveActiveOrganizationId({ ...req, user });
+    } catch {
+      activeOrganizationId = organizationIds[0] || null;
+    }
+
+    res.json({
+      message: "Gender set successfully",
+      user: {
+        ...user.toObject(),
+        organizations,
+        activeOrganizationId
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to set gender" });
   }
 };

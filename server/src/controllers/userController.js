@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import Task from "../models/Task.js";
 import Project from "../models/Project.js";
 import Organization from "../models/Organization.js";
+import AuditLog from "../models/AuditLog.js";
 import { requireActiveOrganizationId } from "../utils/organizationScope.js";
 
 const USER_EDITABLE_ROLES = ["superadmin", "admin", "team", "client"];
@@ -143,7 +144,7 @@ export const getTeamUsers = async (req, res) => {
 
     const [data, totalRecords] = await Promise.all([
       User.find(query)
-        .select("name email role status isActive organizationId")
+        .select("name email role status isActive organizationId gender")
         .sort({ name: 1 })
         .skip(skip)
         .limit(limit),
@@ -185,7 +186,7 @@ export const getAssignableUsers = async (req, res) => {
         { _id: req.user._id }
       ]
     })
-      .select("name email role organizationId")
+      .select("name email role organizationId gender")
       .sort({ name: 1 });
 
     res.json({ users });
@@ -202,7 +203,7 @@ export const getAllUsers = async (req, res) => {
     const limit = parseInt(req.query.limit) || 15;
     const skip = (page - 1) * limit;
 
-    const { search, role, status, organizationId, isActive } = req.query;
+    const { search, role, status, organizationId, isActive, gender } = req.query;
 
     const query = {};
 
@@ -215,6 +216,7 @@ export const getAllUsers = async (req, res) => {
     if (role && role !== "all") query.role = role;
     if (status && status !== "all") query.status = status;
     if (isActive && isActive !== "all") query.isActive = isActive === "active";
+    if (gender && gender !== "all") query.gender = gender;
     if (organizationId && organizationId !== "all") {
       if (organizationId === "none") {
         query.organizationId = null;
@@ -251,7 +253,7 @@ export const getAllUsers = async (req, res) => {
 
 export const createUserBySuperAdmin = async (req, res) => {
   try {
-    const { name, email, role, organizationId, password, allowedOrganizations, projectIds } = req.body;
+    const { name, email, role, organizationId, password, allowedOrganizations, projectIds, gender } = req.body;
 
     if (!name || !email || !role) {
       return res.status(400).json({ message: "name, email, and role are required" });
@@ -259,6 +261,10 @@ export const createUserBySuperAdmin = async (req, res) => {
 
     if (role !== "admin" && role !== "team" && role !== "client") {
       return res.status(400).json({ message: "role must be admin, team, or client" });
+    }
+
+    if (!gender || !["male", "female"].includes(gender)) {
+      return res.status(400).json({ message: "Gender is required and must be 'male' or 'female'" });
     }
 
     if (!organizationId) {
@@ -290,6 +296,7 @@ export const createUserBySuperAdmin = async (req, res) => {
       email: normalizedEmail,
       password: hashedPassword,
       role,
+      gender,
       organizationId,
       allowedOrganizations: normalizedAllowedOrganizations,
       projectIds: role === "client" ? (projectIds || []) : [],
@@ -331,7 +338,9 @@ export const updateUserBySuperAdmin = async (req, res) => {
       allowedOrganizations,
       projectIds,
       status,
-      isActive
+      isActive,
+      gender,
+      genderChangeReason
     } = req.body;
 
     if (role && !USER_EDITABLE_ROLES.includes(role)) {
@@ -418,6 +427,36 @@ export const updateUserBySuperAdmin = async (req, res) => {
 
     if (isActive !== undefined) {
       user.isActive = Boolean(isActive);
+    }
+
+    if (gender !== undefined) {
+      if (!["male", "female", "not_specified"].includes(gender)) {
+        return res.status(400).json({ message: "Invalid gender value" });
+      }
+
+      if (gender !== user.gender) {
+        if (!genderChangeReason || !String(genderChangeReason).trim()) {
+          return res.status(400).json({ message: "Reason is required when changing gender" });
+        }
+
+        const previousGender = user.gender;
+        user.gender = gender;
+
+        await AuditLog.create({
+          userId: req.user._id,
+          userName: req.user.name,
+          userRole: req.user.role,
+          action: "gender_updated",
+          details: {
+            targetUserId: user._id,
+            targetUserName: user.name,
+            previousGender,
+            updatedGender: gender,
+            reason: String(genderChangeReason).trim()
+          },
+          organizationId: user.organizationId
+        });
+      }
     }
 
     if (Object.prototype.hasOwnProperty.call(req.body, "organizationId")) {

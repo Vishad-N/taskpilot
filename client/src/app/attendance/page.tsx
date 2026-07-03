@@ -17,11 +17,13 @@ export default function AttendancePage() {
   const [allAttendance, setAllAttendance] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [requests, setRequests] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState("my"); // 'my', 'overview', 'requests', 'sheet'
+  const [frozenRecords, setFrozenRecords] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState("my"); // 'my', 'overview', 'requests', 'sheet', 'freezed'
   const [orgUsers, setOrgUsers] = useState<any[]>([]);
   const [sheetAttendance, setSheetAttendance] = useState<any[]>([]);
   const [currentDateStr, setCurrentDateStr] = useState(new Date().toISOString().split("T")[0]);
   const [selectedSheetDate, setSelectedSheetDate] = useState(currentDateStr);
+  const [sheetGenderFilter, setSheetGenderFilter] = useState("all");
 
   // Correction Request Modal State
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -50,12 +52,13 @@ export default function AttendancePage() {
         const myRes = await api.get("/attendance/my");
         setMyAttendance(myRes.data.attendance || []);
       } else if (user?.role === "admin" || user?.role === "superadmin") {
-        const [myRes, allRes, statRes, reqRes, usersRes] = await Promise.all([
+        const [myRes, allRes, statRes, reqRes, usersRes, frozenRes] = await Promise.all([
           api.get("/attendance/my"),
           api.get("/attendance/all"),
           api.get("/attendance/analytics"),
           api.get(`/attendance/correction-requests?page=${requestsPage}&limit=${limit}`),
-          api.get("/users/assignable")
+          api.get("/users/assignable"),
+          api.get("/attendance/frozen-accounts")
         ]);
         setMyAttendance(myRes.data.attendance || []);
         setAllAttendance(allRes.data.attendance || []);
@@ -64,6 +67,7 @@ export default function AttendancePage() {
         setRequestsTotalPages(reqRes.data.totalPages ?? 1);
         setRequestsTotalRecords(reqRes.data.totalRecords ?? 0);
         setOrgUsers(usersRes.data.users || []);
+        setFrozenRecords(frozenRes.data.frozenRecords || []);
       }
     } catch (e) {
       console.error("Failed to load attendance", e);
@@ -193,8 +197,11 @@ export default function AttendancePage() {
               <button onClick={() => setActiveTab("my")} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === "my" ? "bg-emerald-500 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>My Record</button>
               <button onClick={() => setActiveTab("overview")} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === "overview" ? "bg-emerald-500 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>Overview</button>
               <button onClick={() => setActiveTab("sheet")} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === "sheet" ? "bg-emerald-500 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>Attendance Sheet</button>
-              <button onClick={() => setActiveTab("requests")} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === "requests" ? "bg-emerald-500 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>
+              <button onClick={() => setActiveTab("requests")} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === "requests" ? "bg-emerald-500 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>
                 Requests {requests.filter(r => r.status === "Pending").length > 0 && <span className="ml-2 bg-amber-500 text-black px-1.5 py-0.5 rounded-full text-[10px]">{requests.filter(r => r.status === "Pending").length}</span>}
+              </button>
+              <button onClick={() => setActiveTab("freezed")} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === "freezed" ? "bg-red-600 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>
+                Freezed Accounts {frozenRecords.length > 0 && <span className="ml-2 bg-red-500 text-white px-1.5 py-0.5 rounded-full text-[10px]">{frozenRecords.length}</span>}
               </button>
               <button onClick={() => setShowExportModal(true)} className="ml-auto px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all">
                 Export
@@ -367,18 +374,31 @@ export default function AttendancePage() {
             <div className="bg-[#11161D] border border-white/5 rounded-3xl p-6 shadow-xl w-full">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-white font-bold text-lg">Attendance Sheet</h2>
-                <input 
-                  type="date" 
-                  value={selectedSheetDate} 
-                  onChange={(e) => setSelectedSheetDate(e.target.value)}
-                  className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white"
-                />
+                <div className="flex gap-4">
+                  <select
+                    value={sheetGenderFilter}
+                    onChange={(e) => setSheetGenderFilter(e.target.value)}
+                    className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white"
+                  >
+                    <option value="all">All Genders</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="not_specified">Not Specified</option>
+                  </select>
+                  <input 
+                    type="date" 
+                    value={selectedSheetDate} 
+                    onChange={(e) => setSelectedSheetDate(e.target.value)}
+                    className="bg-white/5 border border-white/10 rounded-xl px-4 py-2 text-sm text-white"
+                  />
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm text-gray-400">
                   <thead className="text-[10px] uppercase tracking-widest text-gray-500 bg-white/5">
                     <tr>
                       <th className="px-4 py-3 rounded-l-xl">User</th>
+                      <th className="px-4 py-3">Gender</th>
                       <th className="px-4 py-3">Clock In</th>
                       <th className="px-4 py-3">Clock Out</th>
                       <th className="px-4 py-3">Total Hours</th>
@@ -386,7 +406,7 @@ export default function AttendancePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {orgUsers.length > 0 ? orgUsers.map(user => {
+                    {orgUsers.filter(u => sheetGenderFilter === "all" || (u.gender || "not_specified") === sheetGenderFilter).length > 0 ? orgUsers.filter(u => sheetGenderFilter === "all" || (u.gender || "not_specified") === sheetGenderFilter).map(user => {
                       const record = sheetAttendance.find(a => a.userId?._id === user._id);
                       
                       let displayStatus = "No Record";
@@ -418,6 +438,7 @@ export default function AttendancePage() {
                       return (
                         <tr key={user._id} className="border-b border-white/5 hover:bg-white/[0.02]">
                           <td className="px-4 py-4 font-bold text-gray-300">{user.name}</td>
+                          <td className="px-4 py-4 text-gray-400 capitalize">{user.gender === "not_specified" ? "-" : (user.gender || "-")}</td>
                           <td className="px-4 py-4">{record?.clockIn ? new Date(record.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
                           <td className="px-4 py-4">{record?.clockOut ? new Date(record.clockOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : record?.clockIn ? <span className="text-emerald-400 animate-pulse text-xs">Active</span> : '-'}</td>
                           <td className="px-4 py-4">{record?.totalHours ? record.totalHours.toFixed(2) + 'h' : '-'}</td>
@@ -430,7 +451,87 @@ export default function AttendancePage() {
                       );
                     }) : (
                       <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-gray-500 font-medium">No users found in the organization.</td>
+                        <td colSpan={6} className="px-4 py-8 text-center text-gray-500 font-medium">No users found for the selected filters.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "freezed" && (
+            <div className="bg-[#11161D] border border-white/5 rounded-3xl p-6 shadow-xl w-full">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-white font-bold text-lg">Freezed Accounts (No Clock Out)</h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-gray-400">
+                  <thead className="text-[10px] uppercase tracking-widest text-gray-500 bg-white/5">
+                    <tr>
+                      <th className="px-4 py-3 rounded-l-xl">User</th>
+                      <th className="px-4 py-3">Date</th>
+                      <th className="px-4 py-3">Proposed Clock Out</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3 rounded-r-xl">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {frozenRecords.map(record => {
+                      const isWaitingUser = record.freezeStatus === "frozen";
+                      return (
+                        <tr key={record._id} className={`border-b border-white/5 hover:bg-white/[0.02] ${isWaitingUser ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-amber-500'}`}>
+                          <td className="px-4 py-4 font-bold text-gray-300">
+                            {record.userId?.name}
+                            <p className="text-xs text-gray-500 font-normal mt-1">{record.userId?.email}</p>
+                          </td>
+                          <td className="px-4 py-4">{record.attendanceDate}</td>
+                          <td className="px-4 py-4">
+                            {record.proposedClockOut ? new Date(record.proposedClockOut).toLocaleString() : <span className="text-red-400 text-xs italic">Not submitted</span>}
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${isWaitingUser ? "bg-red-500/10 text-red-400 border border-red-500/20" : "bg-amber-500/10 text-amber-400 border border-amber-500/20"}`}>
+                              {isWaitingUser ? "Waiting for User" : "Waiting for Admin"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex gap-2">
+                              {!isWaitingUser && (
+                                <button
+                                  onClick={async () => {
+                                    if (confirm("Accept proposed time and unfreeze?")) {
+                                      try {
+                                        await api.post(`/attendance/frozen-accounts/${record._id}/resolve`, { action: "unfreeze" });
+                                        loadData();
+                                      } catch(e: any) { alert(e.response?.data?.message || "Failed"); }
+                                    }
+                                  }}
+                                  className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 rounded-lg text-[10px] font-bold uppercase tracking-widest transition"
+                                >
+                                  Unfreeze
+                                </button>
+                              )}
+                              <button
+                                onClick={async () => {
+                                  if (confirm("Mark as Half Day and unfreeze?")) {
+                                    try {
+                                      await api.post(`/attendance/frozen-accounts/${record._id}/resolve`, { action: "unfreeze_half_day" });
+                                      loadData();
+                                    } catch(e: any) { alert(e.response?.data?.message || "Failed"); }
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 rounded-lg text-[10px] font-bold uppercase tracking-widest transition"
+                              >
+                                Unfreeze & Mark Half Day
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {frozenRecords.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-8 text-center text-gray-500 font-medium">No frozen accounts.</td>
                       </tr>
                     )}
                   </tbody>

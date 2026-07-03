@@ -130,6 +130,24 @@ export default function ProfileSettingsPage() {
               </div>
             </label>
 
+            <label className="block space-y-2 opacity-70">
+              <span className="text-[10px] font-black uppercase tracking-[0.24em] text-gray-500">
+                Gender
+              </span>
+              <div className="flex items-center gap-3 rounded-2xl border border-white/5 bg-white/[0.01] px-4 py-3 cursor-not-allowed">
+                <Lock className="h-4 w-4 text-gray-600" />
+                <div className="w-full bg-transparent text-sm text-gray-400 select-none">
+                  {user?.gender === "not_specified" 
+                    ? "Not Specified" 
+                    : user?.gender === "male" 
+                      ? "Male" 
+                      : user?.gender === "female" 
+                        ? "Female" 
+                        : "Unknown"}
+                </div>
+              </div>
+            </label>
+
             <label className="block space-y-2">
               <span className="text-[10px] font-black uppercase tracking-[0.24em] text-gray-500">
                 New Password

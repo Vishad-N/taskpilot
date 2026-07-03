@@ -27,6 +27,7 @@ type ManagedUser = {
   organizationId?: Organization | null;
   allowedOrganizations?: Organization[];
   projectIds?: Project[];
+  gender?: "male" | "female" | "not_specified";
 };
 
 type UserEditor = {
@@ -38,6 +39,8 @@ type UserEditor = {
   organizationId: string;
   allowedOrganizations: string[];
   projectIds: string[];
+  gender: "male" | "female" | "not_specified";
+  genderChangeReason: string;
 };
 
 const getErrorMessage = (error: unknown, fallback: string) => {
@@ -67,7 +70,9 @@ const mapUserToEditor = (user: ManagedUser): UserEditor => ({
   isActive: Boolean(user.isActive),
   organizationId: user.organizationId?._id ?? "",
   allowedOrganizations: (user.allowedOrganizations ?? []).map((organization) => organization._id),
-  projectIds: (user.projectIds ?? []).map((project) => project._id)
+  projectIds: (user.projectIds ?? []).map((project) => project._id),
+  gender: user.gender ?? "not_specified",
+  genderChangeReason: ""
 });
 
 export default function SuperAdminUsersPage() {
@@ -79,6 +84,7 @@ export default function SuperAdminUsersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [orgFilter, setOrgFilter] = useState("all");
   const [activityFilter, setActivityFilter] = useState("all");
+  const [genderFilter, setGenderFilter] = useState("all");
   const [selectedUserId, setSelectedUserId] = useState("");
   const [editor, setEditor] = useState<UserEditor | null>(null);
   const [passwordDraft, setPasswordDraft] = useState("");
@@ -103,7 +109,8 @@ export default function SuperAdminUsersPage() {
         role: roleFilter,
         status: statusFilter,
         organizationId: orgFilter,
-        isActive: activityFilter
+        isActive: activityFilter,
+        gender: genderFilter
       });
 
       const [usersRes, orgsRes] = await Promise.all([
@@ -126,12 +133,12 @@ export default function SuperAdminUsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [limit, search, roleFilter, statusFilter, orgFilter, activityFilter]);
+  }, [limit, search, roleFilter, statusFilter, orgFilter, activityFilter, genderFilter]);
 
   useEffect(() => {
     // Reset page to 1 on filter change
     setPage(1);
-  }, [search, roleFilter, statusFilter, orgFilter, activityFilter]);
+  }, [search, roleFilter, statusFilter, orgFilter, activityFilter, genderFilter]);
 
   useEffect(() => {
     const run = async () => {
@@ -203,7 +210,9 @@ export default function SuperAdminUsersPage() {
         allowedOrganizations: editor.allowedOrganizations.filter(
           (organizationId) => organizationId !== editor.organizationId
         ),
-        projectIds: editor.role === "client" ? editor.projectIds : []
+        projectIds: editor.role === "client" ? editor.projectIds : [],
+        gender: editor.gender,
+        genderChangeReason: editor.gender !== selectedUser?.gender ? editor.genderChangeReason : undefined
       });
 
       applyUpdatedUser(response.data.user);
@@ -304,6 +313,16 @@ export default function SuperAdminUsersPage() {
               <option value="pending">Pending</option>
             </select>
             <select
+              value={genderFilter}
+              onChange={(event) => setGenderFilter(event.target.value)}
+              className="rounded-2xl border border-[var(--card-border)] bg-[var(--surface-2)] px-4 py-3 outline-none"
+            >
+              <option value="all">All genders</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="not_specified">Not Specified</option>
+            </select>
+            <select
               value={orgFilter}
               onChange={(event) => setOrgFilter(event.target.value)}
               className="rounded-2xl border border-[var(--card-border)] bg-[var(--surface-2)] px-4 py-3 outline-none"
@@ -361,9 +380,14 @@ export default function SuperAdminUsersPage() {
                           <p className="font-semibold">{user.name}</p>
                           <p className="mt-1 text-sm text-[var(--muted)]">{user.email}</p>
                         </div>
-                        <span className="rounded-full bg-[var(--background)] px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">
-                          {user.role}
-                        </span>
+                        <div className="flex flex-col items-end gap-1">
+                          <span className="rounded-full bg-[var(--background)] px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                            {user.role}
+                          </span>
+                          <span className="rounded-full bg-[var(--background)] px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-[var(--muted)]">
+                            {user.gender === "not_specified" ? "-" : user.gender}
+                          </span>
+                        </div>
                       </div>
                       <div className="mt-4 flex flex-wrap gap-2 text-xs">
                         <span className="rounded-full bg-[var(--background)] px-2.5 py-1 text-[var(--muted)]">
@@ -490,6 +514,36 @@ export default function SuperAdminUsersPage() {
                       <option value="client">Client</option>
                     </select>
                   </label>
+                  <label className="space-y-2">
+                    <span className="text-sm text-[var(--muted)]">Gender</span>
+                    <select
+                      value={editor.gender}
+                      onChange={(event) =>
+                        setEditor((current) =>
+                          current ? { ...current, gender: event.target.value as "male" | "female" | "not_specified" } : current
+                        )
+                      }
+                      className="w-full rounded-2xl border border-[var(--card-border)] bg-[var(--surface-2)] px-4 py-3 outline-none"
+                    >
+                      <option value="not_specified">Not Specified</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                    </select>
+                  </label>
+                  {editor.gender !== selectedUser?.gender && (
+                    <label className="space-y-2 xl:col-span-4">
+                      <span className="text-sm text-[var(--muted)]">Reason for gender change (Required)</span>
+                      <input
+                        value={editor.genderChangeReason}
+                        onChange={(event) =>
+                          setEditor((current) => (current ? { ...current, genderChangeReason: event.target.value } : current))
+                        }
+                        placeholder="Admin action: correcting profile..."
+                        required
+                        className="w-full rounded-2xl border border-[var(--card-border)] bg-[var(--surface-2)] px-4 py-3 outline-none border-amber-500/50"
+                      />
+                    </label>
+                  )}
                   <label className="space-y-2">
                     <span className="text-sm text-[var(--muted)]">Status</span>
                     <select

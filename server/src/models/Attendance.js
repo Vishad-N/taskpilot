@@ -35,7 +35,7 @@ const attendanceSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["Present", "Absent", "Late", "Half Day", "Weekly Off"],
+      enum: ["Present", "Absent", "Late", "Half Day", "Weekly Off", "On Leave"],
       default: "Present",
     },
     corrected: {
@@ -48,6 +48,14 @@ const attendanceSchema = new mongoose.Schema(
     },
     correctionReason: {
       type: String,
+    },
+    freezeStatus: {
+      type: String,
+      enum: ["none", "frozen", "submitted_time", "resolved"],
+      default: "none",
+    },
+    proposedClockOut: {
+      type: Date,
     },
   },
   {

@@ -111,6 +111,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       window.dispatchEvent(new CustomEvent("taskpilot:task_comment_added", { detail: data }));
     });
 
+    socket.on("leave_updated", () => {
+      window.dispatchEvent(new CustomEvent("taskpilot:leave_updated"));
+    });
+
     return () => {
       socket.disconnect();
     };

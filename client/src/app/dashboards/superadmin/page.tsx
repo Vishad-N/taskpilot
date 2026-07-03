@@ -57,6 +57,7 @@ export default function SuperAdminDashboard() {
   const [newUserName, setNewUserName] = useState("");
   const [newUserEmail, setNewUserEmail] = useState("");
   const [newUserRole, setNewUserRole] = useState("client");
+  const [newUserGender, setNewUserGender] = useState("male");
   const [newUserOrg, setNewUserOrg] = useState("");
   const [newUserAllowedOrgs, setNewUserAllowedOrgs] = useState<string[]>([]);
   const [newUserProjectIds, setNewUserProjectIds] = useState<string[]>([]);
@@ -169,6 +170,7 @@ export default function SuperAdminDashboard() {
         name: newUserName,
         email: newUserEmail,
         role: newUserRole,
+        gender: newUserGender,
         organizationId: newUserOrg,
         allowedOrganizations: newUserAllowedOrgs.filter((organizationId) => organizationId !== newUserOrg),
         projectIds: newUserRole === "client" ? newUserProjectIds : [],
@@ -374,7 +376,7 @@ export default function SuperAdminDashboard() {
                 />
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-3">
                 <select
                   value={newUserRole}
                   onChange={(event) => setNewUserRole(event.target.value)}
@@ -383,6 +385,15 @@ export default function SuperAdminDashboard() {
                   <option value="client">Client</option>
                   <option value="team">Team</option>
                   <option value="admin">Admin</option>
+                </select>
+
+                <select
+                  value={newUserGender}
+                  onChange={(event) => setNewUserGender(event.target.value)}
+                  className="w-full rounded-2xl border border-[var(--card-border)] bg-[var(--surface-2)] px-4 py-3 outline-none"
+                >
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
                 </select>
 
                 <select
