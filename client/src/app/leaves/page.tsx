@@ -7,6 +7,8 @@ import { useMe } from "@/hooks/useMe";
 import SoftLoader from "@/components/ui/SoftLoader";
 import { Calendar, CheckCircle, Clock, XCircle, FileText } from "lucide-react";
 import { motion } from "framer-motion";
+import ErrorModal from "@/components/ui/ErrorModal";
+import SuccessModal from "@/components/ui/SuccessModal";
 
 export default function LeavesPage() {
   const { user } = useMe();
@@ -24,10 +26,15 @@ export default function LeavesPage() {
   const [isHalfDay, setIsHalfDay] = useState(false);
   const [halfDayPeriod, setHalfDayPeriod] = useState("morning");
   const [reason, setReason] = useState("");
+  const [hasDateError, setHasDateError] = useState(false);
   
   // Admin Requests
   const [adminRequests, setAdminRequests] = useState<any[]>([]);
   const [adminReviewNote, setAdminReviewNote] = useState("");
+
+  // Modals
+  const [errorModal, setErrorModal] = useState({ open: false, title: "", message: "" });
+  const [successModal, setSuccessModal] = useState({ open: false, title: "", message: "" });
 
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
 
@@ -70,7 +77,7 @@ export default function LeavesPage() {
   const handleApply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!applyType || !startDate || !endDate || !reason) {
-      alert("Please fill all required fields");
+      setErrorModal({ open: true, title: "Missing Fields", message: "Please fill all required fields" });
       return;
     }
     try {
@@ -82,16 +89,21 @@ export default function LeavesPage() {
         halfDayPeriod: isHalfDay ? halfDayPeriod : undefined,
         reason
       });
-      alert("Leave applied successfully!");
+      setSuccessModal({ open: true, title: "Application Submitted", message: "Your leave request has been submitted successfully.\nYour manager will review it shortly." });
       setApplyType("");
       setStartDate("");
       setEndDate("");
       setIsHalfDay(false);
       setReason("");
+      setHasDateError(false);
       setActiveTab("my_balances");
       loadData();
     } catch (e: any) {
-      alert(e.response?.data?.message || "Failed to apply leave");
+      const msg = e.response?.data?.message || "Failed to apply leave";
+      setErrorModal({ open: true, title: "Leave Application Failed", message: msg });
+      if (msg.toLowerCase().includes("consecutive") || msg.toLowerCase().includes("maximum") || msg.toLowerCase().includes("already applied")) {
+        setHasDateError(true);
+      }
     }
   };
 
@@ -99,21 +111,21 @@ export default function LeavesPage() {
     if (!confirm("Are you sure you want to cancel this leave request?")) return;
     try {
       await api.patch(`/leaves/${id}/cancel`);
-      alert("Leave cancelled.");
+      setSuccessModal({ open: true, title: "Leave Cancelled", message: "Your leave request has been cancelled." });
       loadData();
     } catch (e: any) {
-      alert(e.response?.data?.message || "Failed to cancel leave");
+      setErrorModal({ open: true, title: "Cancellation Failed", message: e.response?.data?.message || "Failed to cancel leave" });
     }
   };
 
   const handleReview = async (id: string, status: string) => {
     try {
       await api.patch(`/leaves/${id}/review`, { status, reviewNote: adminReviewNote });
-      alert(`Leave ${status.toLowerCase()} successfully.`);
+      setSuccessModal({ open: true, title: "Review Submitted", message: `Leave ${status.toLowerCase()} successfully.` });
       setAdminReviewNote("");
       loadData();
     } catch (e: any) {
-      alert(e.response?.data?.message || "Failed to review leave");
+      setErrorModal({ open: true, title: "Review Failed", message: e.response?.data?.message || "Failed to review leave" });
     }
   };
 
@@ -235,8 +247,11 @@ export default function LeavesPage() {
                     <input 
                       type="date"
                       value={startDate}
-                      onChange={e => setStartDate(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-emerald-500 transition outline-none"
+                      onChange={e => {
+                        setStartDate(e.target.value);
+                        setHasDateError(false);
+                      }}
+                      className={`w-full bg-white/5 border ${hasDateError ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-white focus:border-emerald-500 transition outline-none`}
                       required
                     />
                   </div>
@@ -245,12 +260,18 @@ export default function LeavesPage() {
                     <input 
                       type="date"
                       value={endDate}
-                      onChange={e => setEndDate(e.target.value)}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-emerald-500 transition outline-none"
+                      onChange={e => {
+                        setEndDate(e.target.value);
+                        setHasDateError(false);
+                      }}
+                      className={`w-full bg-white/5 border ${hasDateError ? 'border-red-500' : 'border-white/10'} rounded-xl px-4 py-3 text-white focus:border-emerald-500 transition outline-none`}
                       required
                     />
                   </div>
                 </div>
+                {hasDateError && (
+                  <p className="text-sm text-red-500 mt-2">Earned Leave cannot exceed 1 consecutive working day.</p>
+                )}
 
                 <div className="flex items-center gap-4 py-2">
                   <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-300">
@@ -356,6 +377,19 @@ export default function LeavesPage() {
           )}
         </div>
       )}
+
+      <ErrorModal 
+        open={errorModal.open} 
+        title={errorModal.title} 
+        message={errorModal.message} 
+        onClose={() => setErrorModal({ ...errorModal, open: false })} 
+      />
+      <SuccessModal 
+        open={successModal.open} 
+        title={successModal.title} 
+        message={successModal.message} 
+        onClose={() => setSuccessModal({ ...successModal, open: false })} 
+      />
     </DashboardLayout>
   );
 }

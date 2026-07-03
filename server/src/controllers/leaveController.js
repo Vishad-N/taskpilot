@@ -81,9 +81,10 @@ export const getLeaveTypes = async (req, res) => {
           applicableGenders: ["male", "female"],
           creditsPerYear: 12,
           creditsPerMonth: 1,
-          maxCarryForward: 6,
+          creditsPerMonth: 1,
+          maxCarryForward: 0,
           requiresApproval: true,
-          maxConsecutiveDays: 0,
+          maxConsecutiveDays: 1,
         },
         {
           name: "Menstrual Leave",
@@ -139,6 +140,11 @@ export const getMyLeaveBalances = async (req, res) => {
     for (const leaveType of leaveTypes) {
       const balanceExists = await LeaveBalance.exists({ userId, leaveTypeId: leaveType._id, year });
       if (!balanceExists) {
+        let expired = 0;
+        if (leaveType.creditsPerMonth === 1) {
+          expired = new Date().getMonth(); // Expire past months
+        }
+
         await LeaveBalance.create({
           userId,
           organizationId,
@@ -146,7 +152,8 @@ export const getMyLeaveBalances = async (req, res) => {
           year,
           totalCredits: leaveType.creditsPerYear,
           used: 0,
-          pending: 0
+          pending: 0,
+          expired
         });
       }
     }
@@ -223,7 +230,7 @@ export const applyLeave = async (req, res) => {
     }
 
     // Monthly strict validation for Use-It-Or-Lose-It types (Earned Leave, Menstrual Leave)
-    if (leaveType.creditsPerMonth === 1 && leaveType.maxCarryForward === 0) {
+    if (leaveType.creditsPerMonth === 1) {
       if (totalDays > 1) {
         return res.status(400).json({ message: `You can only apply for a maximum of 1 day at a time for ${leaveType.name}.` });
       }
@@ -253,6 +260,11 @@ export const applyLeave = async (req, res) => {
     const year = start.getFullYear();
     let balance = await LeaveBalance.findOne({ userId, leaveTypeId, year });
     if (!balance) {
+      let expired = 0;
+      if (leaveType.creditsPerMonth === 1) {
+        expired = new Date().getMonth();
+      }
+
       balance = new LeaveBalance({
         userId,
         organizationId,
@@ -260,7 +272,8 @@ export const applyLeave = async (req, res) => {
         year,
         totalCredits: leaveType.creditsPerYear,
         used: 0,
-        pending: 0
+        pending: 0,
+        expired
       });
       await balance.save();
     }

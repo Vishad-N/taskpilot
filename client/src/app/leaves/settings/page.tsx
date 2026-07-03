@@ -5,6 +5,8 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import api from "@/services/api";
 import { useMe } from "@/hooks/useMe";
 import SoftLoader from "@/components/ui/SoftLoader";
+import ErrorModal from "@/components/ui/ErrorModal";
+import SuccessModal from "@/components/ui/SuccessModal";
 
 export default function LeaveSettingsPage() {
   const { user } = useMe();
@@ -30,6 +32,10 @@ export default function LeaveSettingsPage() {
   const [userBalances, setUserBalances] = useState<any[]>([]);
   const [editingBalanceId, setEditingBalanceId] = useState<string | null>(null);
   const [editBalanceTotal, setEditBalanceTotal] = useState<number>(0);
+
+  // Modals
+  const [errorModal, setErrorModal] = useState({ open: false, title: "", message: "" });
+  const [successModal, setSuccessModal] = useState({ open: false, title: "", message: "" });
 
   const isAdmin = user?.role === "admin" || user?.role === "superadmin";
 
@@ -67,11 +73,11 @@ export default function LeaveSettingsPage() {
   const handleSaveRule = async (id: string) => {
     try {
       await api.put(`/leaves/types/${id}`, editRuleForm);
-      alert("Leave rule updated successfully!");
+      setSuccessModal({ open: true, title: "Rule Updated", message: "Leave rule updated successfully!" });
       setEditingRuleId(null);
       loadData();
     } catch (e: any) {
-      alert(e.response?.data?.message || "Failed to update leave rule");
+      setErrorModal({ open: true, title: "Update Failed", message: e.response?.data?.message || "Failed to update leave rule" });
     }
   };
 
@@ -79,10 +85,10 @@ export default function LeaveSettingsPage() {
     if (!confirm("Are you sure you want to delete this leave type?")) return;
     try {
       const res = await api.delete(`/leaves/types/${id}`);
-      alert(res.data.message || "Leave rule deleted.");
+      setSuccessModal({ open: true, title: "Rule Deleted", message: res.data.message || "Leave rule deleted." });
       loadData();
     } catch (e: any) {
-      alert(e.response?.data?.message || "Failed to delete leave rule");
+      setErrorModal({ open: true, title: "Deletion Failed", message: e.response?.data?.message || "Failed to delete leave rule" });
     }
   };
 
@@ -90,7 +96,7 @@ export default function LeaveSettingsPage() {
     e.preventDefault();
     try {
       await api.post("/leaves/types", createForm);
-      alert("Leave rule created successfully!");
+      setSuccessModal({ open: true, title: "Rule Created", message: "Leave rule created successfully!" });
       setShowCreateForm(false);
       setCreateForm({
         name: "",
@@ -102,7 +108,7 @@ export default function LeaveSettingsPage() {
       });
       loadData();
     } catch (e: any) {
-      alert(e.response?.data?.message || "Failed to create leave rule");
+      setErrorModal({ open: true, title: "Creation Failed", message: e.response?.data?.message || "Failed to create leave rule" });
     }
   };
 
@@ -129,11 +135,11 @@ export default function LeaveSettingsPage() {
   const handleSaveBalance = async (id: string) => {
     try {
       await api.put(`/leaves/balances/${id}`, { totalCredits: editBalanceTotal });
-      alert("Balance updated successfully!");
+      setSuccessModal({ open: true, title: "Balance Updated", message: "Balance updated successfully!" });
       setEditingBalanceId(null);
       loadUserBalances(selectedUserId); // Reload
     } catch (e: any) {
-      alert(e.response?.data?.message || "Failed to update balance");
+      setErrorModal({ open: true, title: "Update Failed", message: e.response?.data?.message || "Failed to update balance" });
     }
   };
 
@@ -375,9 +381,21 @@ export default function LeaveSettingsPage() {
               </div>
             )}
           </div>
-
         </div>
       )}
+
+      <ErrorModal 
+        open={errorModal.open} 
+        title={errorModal.title} 
+        message={errorModal.message} 
+        onClose={() => setErrorModal({ ...errorModal, open: false })} 
+      />
+      <SuccessModal 
+        open={successModal.open} 
+        title={successModal.title} 
+        message={successModal.message} 
+        onClose={() => setSuccessModal({ ...successModal, open: false })} 
+      />
     </DashboardLayout>
   );
 }

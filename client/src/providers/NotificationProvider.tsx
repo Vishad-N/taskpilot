@@ -88,11 +88,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     });
 
     socket.on("task_created", (task) => {
+      // Play sound only if the current user is assigned to this new task
+      const isAssigned = task.assignees?.some((a: any) => a === user._id || a._id === user._id);
+      if (isAssigned) {
+        playSound();
+      }
       window.dispatchEvent(new CustomEvent("taskpilot:task_created", { detail: task }));
     });
 
     socket.on("task_updated", (task) => {
-      playSound();
       window.dispatchEvent(new CustomEvent("taskpilot:task_updated", { detail: task }));
     });
 
@@ -102,12 +106,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     });
 
     socket.on("task_deleted", (data) => {
-      playSound();
       window.dispatchEvent(new CustomEvent("taskpilot:task_deleted", { detail: data }));
     });
 
     socket.on("task_comment_added", (data) => {
-      playSound();
       window.dispatchEvent(new CustomEvent("taskpilot:task_comment_added", { detail: data }));
     });
 

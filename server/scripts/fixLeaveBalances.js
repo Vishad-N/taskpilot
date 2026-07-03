@@ -11,11 +11,15 @@ const run = async () => {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log("Connected to DB.");
 
+    // Update Earned Leave in the DB to strictly have maxCarryForward: 0 and maxConsecutiveDays: 1
+    await LeaveType.updateMany({ code: "EL" }, { $set: { maxCarryForward: 0, maxConsecutiveDays: 1 } });
+    console.log("Updated Earned Leave config to maxCarryForward=0");
+
     const year = new Date().getFullYear();
     const currentMonthIndex = new Date().getMonth(); // e.g. 6 for July
 
     // Find all monthly use-it-or-lose-it leave types (EL and MSL typically)
-    const monthlyLeaveTypes = await LeaveType.find({ creditsPerMonth: 1, maxCarryForward: 0 });
+    const monthlyLeaveTypes = await LeaveType.find({ creditsPerMonth: 1 });
     const monthlyTypeIds = monthlyLeaveTypes.map(lt => lt._id.toString());
     
     console.log(`Found ${monthlyTypeIds.length} monthly use-it-or-lose-it leave types.`);
