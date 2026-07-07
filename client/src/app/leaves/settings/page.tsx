@@ -168,7 +168,7 @@ export default function LeaveSettingsPage() {
           
           {/* Global Leave Rules */}
           <div className="bg-[#11161D] border border-white/5 rounded-3xl p-6 shadow-xl w-full">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
               <h2 className="text-white font-bold text-lg">Global Leave Rules</h2>
               <button 
                 onClick={() => setShowCreateForm(!showCreateForm)}
@@ -304,7 +304,7 @@ export default function LeaveSettingsPage() {
 
           {/* Employee Leave Balances */}
           <div className="bg-[#11161D] border border-white/5 rounded-3xl p-6 shadow-xl w-full">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
               <h2 className="text-white font-bold text-lg">Employee Leave Balances</h2>
               <select
                 value={selectedUserId}

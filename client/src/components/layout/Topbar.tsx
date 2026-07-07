@@ -57,7 +57,7 @@ export default function Topbar({ onMenuToggle }: { onMenuToggle: () => void }) {
 
           {(activeOrganization || hasMultipleOrganizations) ? (
             <div className="min-w-0 max-w-full flex-1 rounded-[1.35rem] border border-white/5 bg-white/5 px-4 py-3 sm:max-w-[24rem]">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">
+              <p className="mb-1 hidden sm:block text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-500">
                 Active Organization
               </p>
               {hasMultipleOrganizations ? (
@@ -109,9 +109,9 @@ export default function Topbar({ onMenuToggle }: { onMenuToggle: () => void }) {
           <div className="mx-1 hidden h-8 w-px bg-white/5 md:block" />
 
           <div className="relative">
-            <button
+              <button
               onClick={() => setOpen((v) => !v)}
-              className="group flex max-w-full items-center gap-3 rounded-[1.2rem] py-1.5 pl-2 pr-2 transition-all duration-300 hover:bg-white/5 sm:pr-3"
+              className="group flex min-w-0 max-w-full items-center gap-3 rounded-[1.2rem] py-1.5 pl-2 pr-2 transition-all duration-300 hover:bg-white/5 sm:pr-3"
               aria-label="User menu"
             >
               <div className="flex h-9 w-9 items-center justify-center rounded-[1rem] bg-linear-to-br from-emerald-500 to-emerald-600 text-sm font-bold text-white shadow-lg shadow-emerald-500/20 transition-transform group-hover:scale-105">

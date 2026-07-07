@@ -39,6 +39,15 @@ export default function AttendancePage() {
   const [exportEmployeeId, setExportEmployeeId] = useState("");
   const [exporting, setExporting] = useState(false);
 
+  // Direct Edit Modal State
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editRecord, setEditRecord] = useState<any>(null);
+  const [editClockIn, setEditClockIn] = useState("");
+  const [editClockOut, setEditClockOut] = useState("");
+  const [editStatus, setEditStatus] = useState("");
+  const [editReason, setEditReason] = useState("");
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+
   // Pagination for requests
   const [requestsPage, setRequestsPage] = useState(1);
   const limit = usePaginationLimit();
@@ -125,6 +134,45 @@ export default function AttendancePage() {
 
   const attendanceToday = myAttendance.find(a => a.attendanceDate === currentDateStr);
 
+  const formatForInput = (dateString?: string) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    const offset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+  };
+
+  const openEditModal = (record: any) => {
+    setEditRecord(record);
+    setEditClockIn(formatForInput(record?.clockIn));
+    setEditClockOut(formatForInput(record?.clockOut));
+    setEditStatus(record?.status || "Present");
+    setEditReason("");
+    setShowEditModal(true);
+  };
+
+  const submitDirectEdit = async () => {
+    if (!editReason) return alert("Correction reason is required.");
+    if (!editRecord) return;
+    
+    setIsSubmittingEdit(true);
+    try {
+      await api.put(`/attendance/${editRecord._id}`, {
+        clockIn: editClockIn ? new Date(editClockIn).toISOString() : undefined,
+        clockOut: editClockOut ? new Date(editClockOut).toISOString() : undefined,
+        status: editStatus,
+        correctionReason: editReason
+      });
+      setShowEditModal(false);
+      alert("Attendance updated successfully!");
+      loadData();
+      if (isAdmin) loadSheetData();
+    } catch (e: any) {
+      alert(e.response?.data?.message || "Failed to update attendance.");
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
   const submitCorrection = async () => {
     try {
       await api.post("/attendance/request-correction", {
@@ -193,17 +241,17 @@ export default function AttendancePage() {
       {!loading && (
         <div className="space-y-8">
           {isAdmin && (
-            <div className="flex items-center gap-2 border-b border-white/10 pb-4">
-              <button onClick={() => setActiveTab("my")} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === "my" ? "bg-emerald-500 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>My Record</button>
-              <button onClick={() => setActiveTab("overview")} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === "overview" ? "bg-emerald-500 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>Overview</button>
-              <button onClick={() => setActiveTab("sheet")} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeTab === "sheet" ? "bg-emerald-500 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>Attendance Sheet</button>
-              <button onClick={() => setActiveTab("requests")} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === "requests" ? "bg-emerald-500 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>
+            <div className="flex items-center gap-2 border-b border-white/10 pb-4 overflow-x-auto scrollbar-hide">
+              <button onClick={() => setActiveTab("my")} className={`shrink-0 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === "my" ? "bg-emerald-500 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>My Record</button>
+              <button onClick={() => setActiveTab("overview")} className={`shrink-0 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === "overview" ? "bg-emerald-500 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>Overview</button>
+              <button onClick={() => setActiveTab("sheet")} className={`shrink-0 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === "sheet" ? "bg-emerald-500 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>Attendance Sheet</button>
+              <button onClick={() => setActiveTab("requests")} className={`shrink-0 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === "requests" ? "bg-emerald-500 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>
                 Requests {requests.filter(r => r.status === "Pending").length > 0 && <span className="ml-2 bg-amber-500 text-black px-1.5 py-0.5 rounded-full text-[10px]">{requests.filter(r => r.status === "Pending").length}</span>}
               </button>
-              <button onClick={() => setActiveTab("freezed")} className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === "freezed" ? "bg-red-600 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>
+              <button onClick={() => setActiveTab("freezed")} className={`shrink-0 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === "freezed" ? "bg-red-600 text-white" : "bg-white/5 text-gray-500 hover:text-white"}`}>
                 Freezed Accounts {frozenRecords.length > 0 && <span className="ml-2 bg-red-500 text-white px-1.5 py-0.5 rounded-full text-[10px]">{frozenRecords.length}</span>}
               </button>
-              <button onClick={() => setShowExportModal(true)} className="ml-auto px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all">
+              <button onClick={() => setShowExportModal(true)} className="shrink-0 ml-auto px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap">
                 Export
               </button>
             </div>
@@ -214,12 +262,12 @@ export default function AttendancePage() {
               <ClockInOutCard attendanceToday={attendanceToday} onUpdate={loadData} />
               
               <div className="flex-1 bg-[#11161D] border border-white/5 rounded-3xl p-6 shadow-xl w-full">
-                <div className="flex justify-between items-center mb-6">
+                <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                   <h2 className="text-white font-bold text-lg">My History</h2>
                   <button onClick={() => setShowRequestModal(true)} className="bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-widest px-3 py-2 rounded-lg text-gray-400 hover:text-white transition">Request Correction</button>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm text-gray-400">
+                  <table className="w-full min-w-max whitespace-nowrap text-left text-sm text-gray-400">
                     <thead className="text-[10px] uppercase tracking-widest text-gray-500 bg-white/5">
                       <tr>
                         <th className="px-4 py-3 rounded-l-xl">Date</th>
@@ -285,14 +333,15 @@ export default function AttendancePage() {
               <div className="bg-[#11161D] border border-white/5 rounded-3xl p-6 shadow-xl w-full">
                 <h2 className="text-white font-bold text-lg mb-6">Today's Active Records</h2>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm text-gray-400">
+                  <table className="w-full min-w-max whitespace-nowrap text-left text-sm text-gray-400">
                     <thead className="text-[10px] uppercase tracking-widest text-gray-500 bg-white/5">
                       <tr>
                         <th className="px-4 py-3 rounded-l-xl">User</th>
                         <th className="px-4 py-3">Clock In</th>
                         <th className="px-4 py-3">Clock Out</th>
                         <th className="px-4 py-3">Distance (m)</th>
-                        <th className="px-4 py-3 rounded-r-xl">Status</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3 rounded-r-xl">Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -312,6 +361,9 @@ export default function AttendancePage() {
                               {record.status}
                             </span>
                           </td>
+                          <td className="px-4 py-4">
+                            <button onClick={() => openEditModal(record)} className="px-2 py-1 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white rounded-lg text-xs font-bold transition">Edit</button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -323,38 +375,40 @@ export default function AttendancePage() {
           {isAdmin && activeTab === "requests" && (
             <div className="bg-[#11161D] border border-white/5 rounded-3xl p-6 shadow-xl w-full">
               <h2 className="text-white font-bold text-lg mb-6">Correction Requests</h2>
-              <table className="w-full text-left text-sm text-gray-400">
-                <thead className="text-[10px] uppercase tracking-widest text-gray-500 bg-white/5">
-                  <tr>
-                    <th className="px-4 py-3 rounded-l-xl">User</th>
-                    <th className="px-4 py-3">Reason</th>
-                    <th className="px-4 py-3">Req. In</th>
-                    <th className="px-4 py-3">Req. Out</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="px-4 py-3 rounded-r-xl">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {requests.map(r => (
-                    <tr key={r._id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                      <td className="px-4 py-4 font-bold text-gray-300">{r.userId?.name}</td>
-                      <td className="px-4 py-4">{r.reason}</td>
-                      <td className="px-4 py-4">{r.requestedClockIn ? new Date(r.requestedClockIn).toLocaleString() : '-'}</td>
-                      <td className="px-4 py-4">{r.requestedClockOut ? new Date(r.requestedClockOut).toLocaleString() : '-'}</td>
-                      <td className="px-4 py-4">{r.status}</td>
-                      <td className="px-4 py-4 flex gap-2">
-                        {r.status === "Pending" && (
-                          <>
-                            <button onClick={() => handleReqStatus(r._id, "Approved")} className="px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg text-xs font-bold transition hover:bg-emerald-500/20">Approve</button>
-                            <button onClick={() => handleReqStatus(r._id, "Half Day")} className="px-2 py-1 bg-amber-500/10 text-amber-400 rounded-lg text-xs font-bold transition hover:bg-amber-500/20">Half Day</button>
-                            <button onClick={() => handleReqStatus(r._id, "Rejected")} className="px-2 py-1 bg-red-500/10 text-red-400 rounded-lg text-xs font-bold transition hover:bg-red-500/20">Reject</button>
-                          </>
-                        )}
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-max whitespace-nowrap text-left text-sm text-gray-400">
+                  <thead className="text-[10px] uppercase tracking-widest text-gray-500 bg-white/5">
+                    <tr>
+                      <th className="px-4 py-3 rounded-l-xl">User</th>
+                      <th className="px-4 py-3">Reason</th>
+                      <th className="px-4 py-3">Req. In</th>
+                      <th className="px-4 py-3">Req. Out</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3 rounded-r-xl">Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {requests.map(r => (
+                      <tr key={r._id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                        <td className="px-4 py-4 font-bold text-gray-300">{r.userId?.name}</td>
+                        <td className="px-4 py-4">{r.reason}</td>
+                        <td className="px-4 py-4">{r.requestedClockIn ? new Date(r.requestedClockIn).toLocaleString() : '-'}</td>
+                        <td className="px-4 py-4">{r.requestedClockOut ? new Date(r.requestedClockOut).toLocaleString() : '-'}</td>
+                        <td className="px-4 py-4">{r.status}</td>
+                        <td className="px-4 py-4 flex gap-2">
+                          {r.status === "Pending" && (
+                            <>
+                              <button onClick={() => handleReqStatus(r._id, "Approved")} className="px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg text-xs font-bold transition hover:bg-emerald-500/20">Approve</button>
+                              <button onClick={() => handleReqStatus(r._id, "Half Day")} className="px-2 py-1 bg-amber-500/10 text-amber-400 rounded-lg text-xs font-bold transition hover:bg-amber-500/20">Half Day</button>
+                              <button onClick={() => handleReqStatus(r._id, "Rejected")} className="px-2 py-1 bg-red-500/10 text-red-400 rounded-lg text-xs font-bold transition hover:bg-red-500/20">Reject</button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
 
               {requestsTotalPages > 1 && (
                 <div className="mt-8">
@@ -372,7 +426,7 @@ export default function AttendancePage() {
 
           {isAdmin && activeTab === "sheet" && (
             <div className="bg-[#11161D] border border-white/5 rounded-3xl p-6 shadow-xl w-full">
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <h2 className="text-white font-bold text-lg">Attendance Sheet</h2>
                 <div className="flex gap-4">
                   <select
@@ -394,7 +448,7 @@ export default function AttendancePage() {
                 </div>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-gray-400">
+                <table className="w-full min-w-max whitespace-nowrap text-left text-sm text-gray-400">
                   <thead className="text-[10px] uppercase tracking-widest text-gray-500 bg-white/5">
                     <tr>
                       <th className="px-4 py-3 rounded-l-xl">User</th>
@@ -402,7 +456,8 @@ export default function AttendancePage() {
                       <th className="px-4 py-3">Clock In</th>
                       <th className="px-4 py-3">Clock Out</th>
                       <th className="px-4 py-3">Total Hours</th>
-                      <th className="px-4 py-3 rounded-r-xl">Status</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3 rounded-r-xl">Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -447,11 +502,16 @@ export default function AttendancePage() {
                               {displayStatus}
                             </span>
                           </td>
+                          <td className="px-4 py-4">
+                            {record && (
+                              <button onClick={() => openEditModal(record)} className="px-2 py-1 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white rounded-lg text-xs font-bold transition">Edit</button>
+                            )}
+                          </td>
                         </tr>
                       );
                     }) : (
                       <tr>
-                        <td colSpan={6} className="px-4 py-8 text-center text-gray-500 font-medium">No users found for the selected filters.</td>
+                        <td colSpan={7} className="px-4 py-8 text-center text-gray-500 font-medium">No users found for the selected filters.</td>
                       </tr>
                     )}
                   </tbody>
@@ -462,11 +522,11 @@ export default function AttendancePage() {
 
           {activeTab === "freezed" && (
             <div className="bg-[#11161D] border border-white/5 rounded-3xl p-6 shadow-xl w-full">
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
                 <h2 className="text-white font-bold text-lg">Freezed Accounts (No Clock Out)</h2>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-gray-400">
+                <table className="w-full min-w-max whitespace-nowrap text-left text-sm text-gray-400">
                   <thead className="text-[10px] uppercase tracking-widest text-gray-500 bg-white/5">
                     <tr>
                       <th className="px-4 py-3 rounded-l-xl">User</th>
@@ -566,6 +626,48 @@ export default function AttendancePage() {
               <div className="flex justify-end gap-3 mt-6">
                 <button onClick={() => setShowRequestModal(false)} className="px-4 py-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition">Cancel</button>
                 <button onClick={submitCorrection} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-white rounded-xl font-bold transition">Submit Request</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Direct Edit Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#11161D] border border-white/10 rounded-3xl p-6 w-full max-w-lg shadow-2xl">
+            <h2 className="text-xl font-bold text-white mb-4">Direct Admin Edit</h2>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-gray-500 uppercase tracking-widest font-bold">Clock In Time</label>
+                  <input type="datetime-local" className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white mt-1" value={editClockIn} onChange={e => setEditClockIn(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 uppercase tracking-widest font-bold">Clock Out Time</label>
+                  <input type="datetime-local" className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white mt-1" value={editClockOut} onChange={e => setEditClockOut(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 uppercase tracking-widest font-bold">Status</label>
+                <select className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white mt-1" value={editStatus} onChange={e => setEditStatus(e.target.value)}>
+                  <option value="Present" className="bg-[#11161D]">Present</option>
+                  <option value="Absent" className="bg-[#11161D]">Absent</option>
+                  <option value="Half Day" className="bg-[#11161D]">Half Day</option>
+                  <option value="Weekly Off" className="bg-[#11161D]">Weekly Off</option>
+                  <option value="Holiday" className="bg-[#11161D]">Holiday</option>
+                  <option value="Late" className="bg-[#11161D]">Late</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 uppercase tracking-widest font-bold">Correction Reason *</label>
+                <textarea className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white mt-1" rows={3} value={editReason} onChange={e => setEditReason(e.target.value)} placeholder="e.g. Forgot to clock out, updating shift time" />
+              </div>
+              <div className="flex justify-end gap-3 mt-6">
+                <button onClick={() => setShowEditModal(false)} className="px-4 py-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition" disabled={isSubmittingEdit}>Cancel</button>
+                <button onClick={submitDirectEdit} className="px-4 py-2 bg-blue-500 hover:bg-blue-400 text-white rounded-xl font-bold transition flex items-center gap-2" disabled={isSubmittingEdit}>
+                  {isSubmittingEdit ? "Updating..." : "Update Record"}
+                </button>
               </div>
             </div>
           </div>

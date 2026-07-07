@@ -608,14 +608,14 @@ export default function TasksPage() {
       {error && <p className="text-sm text-red-400 p-4 bg-red-500/10 rounded-2xl border border-red-500/20 font-bold">{error}</p>}
 
       {!loading && !error && usesBoardLayout && (
-        <div className="grid grid-cols-1 gap-6 items-start md:grid-cols-2 2xl:grid-cols-5">
+        <div className="flex overflow-x-auto snap-x snap-mandatory gap-6 pb-4 items-start lg:grid lg:grid-cols-5 lg:overflow-visible">
           {boardStatuses.map((columnStatus, idx) => (
             <motion.div
               key={columnStatus}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: idx * 0.08, ease: "easeOut" }}
-              className="flex min-w-0 flex-col gap-5"
+              className="flex min-w-0 flex-col gap-5 w-[85vw] sm:w-[60vw] md:w-[45vw] shrink-0 snap-center lg:w-auto lg:shrink"
             >
               <div className="flex items-center justify-between px-2">
                 <div className="flex items-center gap-2.5">

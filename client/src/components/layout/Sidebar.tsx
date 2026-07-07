@@ -239,7 +239,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
           },
         ]
       : [{ name: "Dashboard", href: "/dashboard", icon: SquaresFour }]),
-    ...(user?.role !== "client"
+    ...(user?.role === "admin" || user?.role === "superadmin"
       ? [{ name: "Projects", href: "/projects", icon: Briefcase }]
       : []),
     { name: "Team Tasks", href: "/tasks", icon: CheckSquare },
@@ -281,12 +281,12 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
       />
 
       <aside
-        className={`glass fixed inset-y-3 left-3 z-50 flex w-[min(20rem,calc(100vw-1.5rem))] max-w-full flex-col rounded-[2rem] border border-white/5 p-4 shadow-2xl transition-transform duration-300 lg:static lg:inset-auto lg:h-[100dvh] lg:w-72 lg:translate-x-0 lg:rounded-none lg:border-b-0 lg:border-l-0 lg:border-r lg:border-t-0 lg:p-6 ${
+        className={`group glass fixed inset-y-3 left-3 z-50 flex w-[min(16rem,calc(100vw-1.5rem))] max-w-full flex-col rounded-[2rem] border border-white/5 p-4 shadow-2xl transition-all duration-300 md:static md:inset-auto md:h-[100dvh] md:w-[5rem] hover:md:w-60 lg:w-60 md:translate-x-0 md:rounded-none md:border-b-0 md:border-l-0 md:border-r md:border-t-0 md:p-3 hover:md:p-4 lg:p-4 md:overflow-hidden ${
           mobileOpen ? "translate-x-0" : "-translate-x-[110%]"
         }`}
       >
-        <div className="mb-8 flex items-center gap-3 px-2 lg:mb-10">
-          <div className="flex h-11 w-11 items-center justify-center rounded-[1.25rem] bg-white shadow-lg shadow-emerald-500/20">
+        <div className="mb-8 flex items-center gap-3 px-2 lg:mb-10 min-w-max">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.25rem] bg-white shadow-lg shadow-emerald-500/20">
             <Image
               src="/logo.png"
               alt="TaskPilot icon"
@@ -295,7 +295,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
               className="h-7 w-7 object-contain"
             />
           </div>
-          <div>
+          <div className="transition-opacity duration-300 md:opacity-0 group-hover:md:opacity-100 lg:opacity-100">
             <h1 className="text-2xl font-extrabold tracking-tight leading-none text-[var(--foreground)]">
               TaskPilot
             </h1>
@@ -305,7 +305,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
           </div>
         </div>
 
-        <nav className="flex flex-col gap-1.5 overflow-y-auto pr-1">
+        <nav className="flex flex-col gap-1.5 overflow-y-auto overflow-x-hidden pr-1">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
@@ -326,9 +326,9 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
                 >
                   <Icon
                     weight={isActive ? "fill" : "regular"}
-                    className={`h-5.5 w-5.5 transition-colors duration-300 ${isActive ? "text-emerald-400" : "group-hover:text-gray-300"}`}
+                    className={`h-5.5 w-5.5 shrink-0 transition-colors duration-300 ${isActive ? "text-emerald-400" : "group-hover:text-gray-300"}`}
                   />
-                  <span className="font-semibold tracking-[0.02em]">
+                  <span className="font-semibold tracking-[0.02em] whitespace-nowrap transition-opacity duration-300 md:opacity-0 group-hover:md:opacity-100 lg:opacity-100">
                     {item.name}
                   </span>
 
@@ -367,9 +367,9 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
           })}
         </nav>
 
-        <div className="mt-auto space-y-5 pt-6">
+        <div className="mt-auto space-y-5 pt-6 min-w-max">
           {activeSession && (
-            <div className="rounded-[1.75rem] border border-emerald-500/20 bg-emerald-500/5 p-4">
+            <div className="rounded-[1.75rem] border border-emerald-500/20 bg-emerald-500/5 p-4 transition-opacity duration-300 md:opacity-0 group-hover:md:opacity-100 lg:opacity-100">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-emerald-300">
                   <ClockCountdown weight="bold" className="h-4 w-4" />
@@ -431,13 +431,13 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
           >
             <SignOut
               weight="bold"
-              className="h-5.5 w-5.5 text-gray-600 group-hover:text-red-400/60"
+              className="h-5.5 w-5.5 shrink-0 text-gray-600 group-hover:text-red-400/60"
             />
-            <span>Logout</span>
+            <span className="whitespace-nowrap transition-opacity duration-300 md:opacity-0 group-hover:md:opacity-100 lg:opacity-100">Logout</span>
           </button>
 
-          <div className="px-4">
-            <div className="mt-1 text-[8px] font-medium uppercase tracking-[0.2em] text-gray-500/40">
+          <div className="px-4 transition-opacity duration-300 md:opacity-0 group-hover:md:opacity-100 lg:opacity-100">
+            <div className="mt-1 text-[8px] font-medium uppercase tracking-[0.2em] text-gray-500/40 whitespace-nowrap">
               Simbolo Multimedia
             </div>
           </div>

@@ -194,9 +194,9 @@ export default function KanbanBoard({
       )}
 
       {/* 🔥 KANBAN */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 lg:grid lg:grid-cols-4 lg:overflow-visible">
         {columns.map((col) => (
-          <div key={col} className="bg-[#0B0F14] p-4 rounded-xl">
+          <div key={col} className="bg-[#0B0F14] p-4 rounded-xl w-[85vw] sm:w-[60vw] md:w-[40vw] shrink-0 snap-center lg:w-auto lg:shrink">
             <h3 className="capitalize mb-4 text-sm text-gray-400">{col}</h3>
 
             <div className="flex flex-col gap-3">

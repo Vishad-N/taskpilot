@@ -471,7 +471,7 @@ export default function ProjectWorkspacePage() {
                     placeholder="WHAT DID YOU ACCOMPLISH TODAY..."
                     className="w-full bg-transparent px-4 py-3 outline-none text-xs font-black text-white min-h-[90px] resize-none uppercase tracking-widest placeholder:opacity-30"
                   />
-                  <div className="flex justify-between items-center p-2 gap-3 border-t border-white/5 mt-2">
+                  <div className="flex flex-wrap justify-between items-center p-2 gap-3 border-t border-white/5 mt-2">
                     <p className="text-[9px] text-gray-600 font-black uppercase tracking-widest">
                       {new Date().toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
                     </p>

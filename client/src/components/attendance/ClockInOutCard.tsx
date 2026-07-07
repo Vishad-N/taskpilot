@@ -83,7 +83,7 @@ export default function ClockInOutCard({ attendanceToday, onUpdate }: ClockInOut
 
       {isAbsent && (
         <div className="mb-6 space-y-2">
-          <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-red-500/20">
+          <div className="flex flex-wrap gap-4 justify-between items-center bg-white/5 p-4 rounded-xl border border-red-500/20">
             <span className="text-xs text-red-400 font-bold uppercase tracking-widest">Status</span>
             <span className="text-red-500 font-black text-sm uppercase">Absent (Late)</span>
           </div>
@@ -107,7 +107,7 @@ export default function ClockInOutCard({ attendanceToday, onUpdate }: ClockInOut
         </div>
       ) : !hasClockedOut ? (
         <div className="space-y-4">
-          <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
+          <div className="flex flex-wrap gap-4 justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
             <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">Clocked In</span>
             <span className="text-white font-black text-sm">
               {new Date(attendanceToday.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -123,13 +123,13 @@ export default function ClockInOutCard({ attendanceToday, onUpdate }: ClockInOut
         </div>
       ) : (
         <div className="space-y-4">
-           <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
+           <div className="flex flex-wrap gap-4 justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
             <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">Clocked In</span>
             <span className="text-white font-black text-sm">
               {new Date(attendanceToday.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </span>
           </div>
-          <div className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
+          <div className="flex flex-wrap gap-4 justify-between items-center bg-white/5 p-4 rounded-xl border border-white/5">
             <span className="text-xs text-gray-400 font-bold uppercase tracking-widest">Clocked Out</span>
             <span className="text-white font-black text-sm">
               {new Date(attendanceToday.clockOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

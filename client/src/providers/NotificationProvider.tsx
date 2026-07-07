@@ -57,7 +57,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     };
 
     socket.on("new_notification", (notification) => {
-      playSound();
+      if (notification.type !== "no_clock_out") {
+        playSound();
+      }
       // 1. Dispatch window event so components like Sidebar can refresh unread count
       window.dispatchEvent(new CustomEvent("taskpilot:new_notification", { detail: notification }));
 
@@ -87,9 +89,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       console.error("Socket connection error:", error);
     });
 
+    socket.on("account_frozen", () => {
+      window.dispatchEvent(new CustomEvent("taskpilot:account_frozen"));
+    });
+
     socket.on("task_created", (task) => {
       // Play sound only if the current user is assigned to this new task
-      const isAssigned = task.assignees?.some((a: any) => a === user._id || a._id === user._id);
+      let isAssigned = false;
+      if (task.assignedTo && (task.assignedTo === user._id || task.assignedTo._id === user._id)) {
+        isAssigned = true;
+      }
+      if (task.assignedToUsers && Array.isArray(task.assignedToUsers)) {
+        if (task.assignedToUsers.some((a: any) => a === user._id || a._id === user._id)) {
+          isAssigned = true;
+        }
+      }
+      
       if (isAssigned) {
         playSound();
       }

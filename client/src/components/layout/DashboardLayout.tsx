@@ -52,8 +52,7 @@ export default function DashboardLayout({
         <motion.main
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-          className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-5 lg:px-8"
+          className="flex-1 overflow-y-auto overflow-x-hidden px-[clamp(1rem,3vw,2rem)] py-[clamp(1rem,3vw,2rem)]"
         >
           {children}
         </motion.main>

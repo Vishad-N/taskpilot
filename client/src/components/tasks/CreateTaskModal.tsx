@@ -62,9 +62,9 @@ export default function CreateTaskModal({
 
       {open && (
 
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
 
-          <div className="bg-white text-black p-6 rounded w-96">
+          <div className="bg-white text-black p-6 rounded w-full max-w-md max-h-[90vh] overflow-y-auto">
 
             <h2 className="text-xl font-bold mb-4">
               Create Task

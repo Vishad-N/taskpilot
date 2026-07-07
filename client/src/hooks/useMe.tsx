@@ -84,9 +84,11 @@ export function MeProvider({ children }: { children: React.ReactNode }) {
     };
 
     window.addEventListener("pageshow", handlePageShow);
+    window.addEventListener("taskpilot:account_frozen", refresh);
 
     return () => {
       window.removeEventListener("pageshow", handlePageShow);
+      window.removeEventListener("taskpilot:account_frozen", refresh);
     };
   }, [refresh]);
 

@@ -80,6 +80,14 @@ export const initCronJobs = () => {
         // Freeze user account
         await User.findByIdAndUpdate(record.userId, { isAccountFrozen: true });
 
+        // Emit socket event to freeze user instantly
+        try {
+          const { getIO } = await import("../services/socketHandler.js");
+          getIO().to(`user:${record.userId}`).emit("account_frozen");
+        } catch (err) {
+          console.error("Socket emit failed in cron freeze:", err);
+        }
+
         // Notify admins
         const admins = await User.find({ 
           organizationId: record.organizationId, 
