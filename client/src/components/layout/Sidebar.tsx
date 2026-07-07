@@ -281,7 +281,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
       />
 
       <aside
-        className={`group glass fixed inset-y-3 left-3 z-50 flex w-[min(16rem,calc(100vw-1.5rem))] max-w-full flex-col rounded-[2rem] border border-white/5 p-4 shadow-2xl transition-all duration-300 md:static md:inset-auto md:h-[100dvh] md:w-[5rem] hover:md:w-60 lg:w-60 md:translate-x-0 md:rounded-none md:border-b-0 md:border-l-0 md:border-r md:border-t-0 md:p-3 hover:md:p-4 lg:p-4 md:overflow-hidden ${
+        className={`group glass fixed inset-y-3 left-3 z-50 flex w-[min(270px,calc(100vw-1.5rem))] max-w-full flex-col rounded-[2rem] border border-white/5 p-4 shadow-2xl transition-all duration-300 md:static md:inset-auto md:h-[100dvh] md:w-[5rem] hover:md:w-[270px] lg:w-[270px] md:translate-x-0 md:rounded-none md:border-b-0 md:border-l-0 md:border-r md:border-t-0 md:p-3 hover:md:p-4 lg:p-4 md:overflow-hidden ${
           mobileOpen ? "translate-x-0" : "-translate-x-[110%]"
         }`}
       >

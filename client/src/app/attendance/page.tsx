@@ -391,7 +391,7 @@ export default function AttendancePage() {
                     {requests.map(r => (
                       <tr key={r._id} className="border-b border-white/5 hover:bg-white/[0.02]">
                         <td className="px-4 py-4 font-bold text-gray-300">{r.userId?.name}</td>
-                        <td className="px-4 py-4">{r.reason}</td>
+                        <td className="px-4 py-4 whitespace-normal max-w-[280px] break-words">{r.reason}</td>
                         <td className="px-4 py-4">{r.requestedClockIn ? new Date(r.requestedClockIn).toLocaleString() : '-'}</td>
                         <td className="px-4 py-4">{r.requestedClockOut ? new Date(r.requestedClockOut).toLocaleString() : '-'}</td>
                         <td className="px-4 py-4">{r.status}</td>
