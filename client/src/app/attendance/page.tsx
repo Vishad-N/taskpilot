@@ -281,7 +281,7 @@ export default function AttendancePage() {
                       {myAttendance.map(record => (
                         <tr key={record._id} className="border-b border-white/5 hover:bg-white/[0.02]">
                           <td className="px-4 py-4 font-bold text-gray-300">{record.attendanceDate}</td>
-                          <td className="px-4 py-4">{new Date(record.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                          <td className="px-4 py-4">{record.clockIn ? new Date(record.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
                           <td className="px-4 py-4">{record.clockOut ? new Date(record.clockOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
                           <td className="px-4 py-4">{record.totalHours?.toFixed(2) || '-'}</td>
                           <td className="px-4 py-4">
@@ -311,9 +311,23 @@ export default function AttendancePage() {
                     <p className="text-2xl font-black text-white">{analytics.presentToday}</p>
                     <p className="text-[9px] text-gray-500 uppercase tracking-widest font-bold mt-1">Present Today</p>
                   </div>
-                  <div className="bg-[#11161D] border border-white/5 rounded-2xl p-4">
+                  <div className="bg-[#11161D] border border-white/5 rounded-2xl p-4 relative group">
                     <p className="text-2xl font-black text-red-400">{analytics.absentToday}</p>
                     <p className="text-[9px] text-gray-500 uppercase tracking-widest font-bold mt-1">Absent Today</p>
+                    <div className="absolute top-full left-0 mt-2 w-48 bg-[#11161D] border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                      <div className="p-3 text-xs text-gray-400 max-h-48 overflow-y-auto custom-scrollbar">
+                        <p className="font-bold text-white mb-2 pb-2 border-b border-white/10">Absent Employees</p>
+                        {orgUsers.filter(u => u.role !== 'superadmin' && !allAttendance.some(a => a.attendanceDate === currentDateStr && a.userId?._id === u._id)).length > 0 ? (
+                          <ul className="space-y-1.5">
+                            {orgUsers.filter(u => u.role !== 'superadmin' && !allAttendance.some(a => a.attendanceDate === currentDateStr && a.userId?._id === u._id)).map(user => (
+                              <li key={user._id} className="truncate">{user.name}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="italic">None</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                   <div className="bg-[#11161D] border border-white/5 rounded-2xl p-4">
                     <p className="text-2xl font-black text-amber-400">{analytics.currentlyClockedIn}</p>
@@ -348,8 +362,8 @@ export default function AttendancePage() {
                       {allAttendance.filter(a => a.attendanceDate === currentDateStr).map(record => (
                         <tr key={record._id} className="border-b border-white/5 hover:bg-white/[0.02]">
                           <td className="px-4 py-4 font-bold text-gray-300">{record.userId?.name || 'Unknown'}</td>
-                          <td className="px-4 py-4">{new Date(record.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                          <td className="px-4 py-4">{record.clockOut ? new Date(record.clockOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : <span className="text-emerald-400 animate-pulse text-xs">Active</span>}</td>
+                          <td className="px-4 py-4">{record.clockIn ? new Date(record.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                          <td className="px-4 py-4">{record.clockOut ? new Date(record.clockOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : record.clockIn ? <span className="text-emerald-400 animate-pulse text-xs">Active</span> : '-'}</td>
                           <td className="px-4 py-4">{record.distanceFromOffice ? Math.round(record.distanceFromOffice) : '-'}</td>
                           <td className="px-4 py-4">
                              <span className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest ${
@@ -461,7 +475,7 @@ export default function AttendancePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {orgUsers.filter(u => sheetGenderFilter === "all" || (u.gender || "not_specified") === sheetGenderFilter).length > 0 ? orgUsers.filter(u => sheetGenderFilter === "all" || (u.gender || "not_specified") === sheetGenderFilter).map(user => {
+                    {orgUsers.filter(u => u.role !== 'superadmin').filter(u => sheetGenderFilter === "all" || (u.gender || "not_specified") === sheetGenderFilter).length > 0 ? orgUsers.filter(u => u.role !== 'superadmin').filter(u => sheetGenderFilter === "all" || (u.gender || "not_specified") === sheetGenderFilter).map(user => {
                       const record = sheetAttendance.find(a => a.userId?._id === user._id);
                       
                       let displayStatus = "No Record";
