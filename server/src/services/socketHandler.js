@@ -6,7 +6,13 @@ let io;
 export const initSocket = (server) => {
   io = new Server(server, {
     cors: {
-      origin: process.env.CORS_ORIGIN || "*",
+      origin: [
+        process.env.NODE_ENV === "production" ? null : "http://localhost:3000",
+        process.env.NODE_ENV === "production" ? null : "http://localhost:3001",
+        "https://thesimbolo.in",
+        "https://www.thesimbolo.in",
+        process.env.CORS_ORIGIN
+      ].filter(Boolean),
       credentials: true,
     },
   });

@@ -43,7 +43,13 @@ initSocket(server);
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN || "http://localhost:3001",
+    origin: [
+      process.env.NODE_ENV === "production" ? null : "http://localhost:3000",
+      process.env.NODE_ENV === "production" ? null : "http://localhost:3001",
+      "https://thesimbolo.in",
+      "https://www.thesimbolo.in",
+      process.env.CORS_ORIGIN
+    ].filter(Boolean),
     credentials: true
   })
 );
