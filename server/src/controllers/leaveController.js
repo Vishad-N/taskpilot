@@ -6,6 +6,7 @@ import User from "../models/User.js";
 import Attendance from "../models/Attendance.js";
 import Notification from "../models/Notification.js";
 import { requireActiveOrganizationId } from "../utils/organizationScope.js";
+import { getISTDateString } from "../utils/dateUtils.js";
 
 // Utility function to get current year
 const getCurrentYear = () => new Date().getFullYear();
@@ -339,7 +340,7 @@ export const applyLeave = async (req, res) => {
         attendanceRecords.push({
           userId,
           organizationId,
-          attendanceDate: current.toISOString().split("T")[0],
+          attendanceDate: getISTDateString(current),
           status: isHalfDay ? "Half Day" : "On Leave",
           totalHours: isHalfDay ? 4 : 0
         });
@@ -529,7 +530,7 @@ export const reviewLeaveRequest = async (req, res) => {
         attendanceRecords.push({
           userId: request.userId._id,
           organizationId,
-          attendanceDate: current.toISOString().split("T")[0],
+          attendanceDate: getISTDateString(current),
           status: request.isHalfDay ? "Half Day" : "On Leave",
           totalHours: request.isHalfDay ? 4 : 0
         });

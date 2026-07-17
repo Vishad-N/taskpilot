@@ -5,6 +5,7 @@ import User from "../models/User.js";
 import ExcelJS from "exceljs";
 import NotificationService from "../services/notificationService.js";
 import { getIO } from "../services/socketHandler.js";
+import { getISTDateString } from "../utils/dateUtils.js";
 
 const OFFICE_LAT = 22.736024;
 const OFFICE_LNG = 75.902866;
@@ -25,7 +26,7 @@ function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
   return d * 1000;
 }
 
-const getTodayDateString = () => new Date().toISOString().split("T")[0];
+const getTodayDateString = () => getISTDateString();
 
 export const clockIn = async (req, res) => {
   try {
@@ -156,15 +157,14 @@ export const clockIn = async (req, res) => {
 
 export const clockOut = async (req, res) => {
   try {
-    const today = getTodayDateString();
-
     const attendance = await Attendance.findOne({
       userId: req.user._id,
-      attendanceDate: today,
-    });
+      clockIn: { $ne: null },
+      clockOut: null,
+    }).sort({ attendanceDate: -1 });
 
     if (!attendance) {
-      return res.status(400).json({ message: "You have not clocked in today." });
+      return res.status(400).json({ message: "You have not clocked in or already clocked out." });
     }
 
     if (!attendance.clockIn) {
@@ -241,11 +241,17 @@ export const getAllAttendance = async (req, res) => {
     if (user) query.userId = user;
 
     const attendance = await Attendance.find(query)
-      .populate("userId", "name email gender")
+      .populate({
+        path: "userId",
+        select: "name email gender role",
+        match: { role: { $ne: "superadmin" } }
+      })
       .populate("correctedBy", "name")
       .sort({ attendanceDate: -1 });
 
-    res.json({ attendance });
+    const filteredAttendance = attendance.filter(a => a.userId !== null);
+
+    res.json({ attendance: filteredAttendance });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch all attendance records." });
   }
@@ -385,7 +391,7 @@ export const updateCorrectionRequest = async (req, res) => {
       } else {
         // Missing attendance creation
         const dateString = request.requestedClockIn
-          ? new Date(request.requestedClockIn).toISOString().split('T')[0]
+          ? getISTDateString(request.requestedClockIn)
           : getTodayDateString();
 
         attendance = await Attendance.findOne({
@@ -453,22 +459,28 @@ export const getAnalytics = async (req, res) => {
     const allAttendanceToday = await Attendance.find({
       organizationId,
       attendanceDate: today,
+    }).populate({
+      path: "userId",
+      select: "role",
+      match: { role: { $ne: "superadmin" } }
     });
+
+    const filteredAttendanceToday = allAttendanceToday.filter(a => a.userId !== null);
 
     // We can fetch all users in org to calculate absent
     const usersInOrg = await User.find({
       $or: [{ organizationId }, { allowedOrganizations: organizationId }],
       isActive: true,
-      role: { $ne: "client" }
+      role: { $nin: ["client", "superadmin"] }
     });
 
-    const presentUserIds = allAttendanceToday.map(a => a.userId.toString());
+    const presentUserIds = filteredAttendanceToday.map(a => a.userId._id.toString());
     const absentCount = usersInOrg.filter(u => !presentUserIds.includes(u._id.toString())).length;
 
-    const currentlyClockedInUserIds = allAttendanceToday.filter(a => !a.clockOut).map(a => a.userId.toString());
+    const currentlyClockedInUserIds = filteredAttendanceToday.filter(a => a.clockIn && !a.clockOut).map(a => a.userId._id.toString());
     const currentlyClockedIn = new Set(currentlyClockedInUserIds).size;
 
-    const totalHoursToday = allAttendanceToday.reduce((acc, curr) => acc + (curr.totalHours || 0), 0);
+    const totalHoursToday = filteredAttendanceToday.reduce((acc, curr) => acc + (curr.totalHours || 0), 0);
 
     const pendingRequests = await AttendanceCorrectionRequest.countDocuments({
       organizationId,
@@ -513,9 +525,15 @@ export const exportAttendance = async (req, res) => {
     }
 
     // Fetch data
-    const attendanceRecords = await Attendance.find(query)
-      .populate("userId", "name email role gender")
+    const attendanceRaw = await Attendance.find(query)
+      .populate({
+        path: "userId",
+        select: "name email role gender",
+        match: { role: { $ne: "superadmin" } }
+      })
       .sort({ attendanceDate: 1 });
+    
+    const attendanceRecords = attendanceRaw.filter(a => a.userId !== null);
 
     const requestsQuery = {
       organizationId,
@@ -529,9 +547,15 @@ export const exportAttendance = async (req, res) => {
       requestsQuery.userId = employeeId;
     }
 
-    const correctionRequests = await AttendanceCorrectionRequest.find(requestsQuery)
-      .populate("userId", "name email")
+    const correctionRequestsRaw = await AttendanceCorrectionRequest.find(requestsQuery)
+      .populate({
+        path: "userId",
+        select: "name email role",
+        match: { role: { $ne: "superadmin" } }
+      })
       .sort({ createdAt: 1 });
+      
+    const correctionRequests = correctionRequestsRaw.filter(r => r.userId !== null);
 
     // Fetch users for monthly summary
     const usersQuery = employeeId
@@ -539,7 +563,7 @@ export const exportAttendance = async (req, res) => {
       : {
         $or: [{ organizationId }, { allowedOrganizations: organizationId }],
         isActive: true,
-        role: { $ne: "client" }
+        role: { $nin: ["client", "superadmin"] }
       };
 
     const users = await User.find(usersQuery).select("name gender");
@@ -575,8 +599,8 @@ export const exportAttendance = async (req, res) => {
         role: record.userId?.role || "Unknown",
         gender: record.userId?.gender === "not_specified" ? "-" : (record.userId?.gender || "-"),
         date: record.attendanceDate,
-        clockIn: record.clockIn ? new Date(record.clockIn).toLocaleTimeString() : "-",
-        clockOut: record.clockOut ? new Date(record.clockOut).toLocaleTimeString() : "-",
+        clockIn: record.clockIn ? new Date(record.clockIn).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }) : "-",
+        clockOut: record.clockOut ? new Date(record.clockOut).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }) : "-",
         hours: record.totalHours ? record.totalHours.toFixed(2) : "-",
         status: record.status,
         distance: record.distanceFromOffice ? Math.round(record.distanceFromOffice) : "-",
@@ -645,10 +669,10 @@ export const exportAttendance = async (req, res) => {
       requestsSheet.addRow({
         name: reqLog.userId?.name || "Unknown",
         reason: reqLog.reason,
-        reqIn: reqLog.requestedClockIn ? new Date(reqLog.requestedClockIn).toLocaleString() : "-",
-        reqOut: reqLog.requestedClockOut ? new Date(reqLog.requestedClockOut).toLocaleString() : "-",
+        reqIn: reqLog.requestedClockIn ? new Date(reqLog.requestedClockIn).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : "-",
+        reqOut: reqLog.requestedClockOut ? new Date(reqLog.requestedClockOut).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : "-",
         status: reqLog.status,
-        date: new Date(reqLog.createdAt).toLocaleDateString(),
+        date: new Date(reqLog.createdAt).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }),
       });
     });
 

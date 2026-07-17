@@ -505,7 +505,11 @@ export const deleteTeamUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    if (user.role !== "team") {
+    if (String(user._id) === String(req.user._id)) {
+      return res.status(400).json({ message: "You cannot delete yourself" });
+    }
+
+    if (user.role !== "team" && req.user.role !== "superadmin") {
       return res.status(400).json({ message: "Only team users can be deleted by admins" });
     }
 

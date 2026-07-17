@@ -5,8 +5,9 @@ import Task from "../models/Task.js";
 import NotificationService from "../services/notificationService.js";
 import LeaveType from "../models/LeaveType.js";
 import LeaveBalance from "../models/LeaveBalance.js";
+import { getISTDateString } from "../utils/dateUtils.js";
 
-const getTodayDateString = () => new Date().toISOString().split("T")[0];
+const getTodayDateString = () => getISTDateString();
 
 export const initCronJobs = () => {
   // Run every day at 12:00 PM for Attendance Check
@@ -52,7 +53,7 @@ export const initCronJobs = () => {
     } catch (error) {
       console.error("[Cron] Error during 12:00 PM Attendance check:", error);
     }
-  });
+  }, { timezone: "Asia/Kolkata" });
 
   // Daily at 9:00 PM check for users who forgot to clock out
   cron.schedule("0 21 * * *", async () => {
@@ -108,7 +109,7 @@ export const initCronJobs = () => {
     } catch (error) {
       console.error("[Cron] Error checking for missing clock-outs:", error);
     }
-  });
+  }, { timezone: "Asia/Kolkata" });
 
   // Daily at 9:00 AM check for due and overdue tasks
   cron.schedule("0 9 * * *", async () => {
@@ -161,7 +162,7 @@ export const initCronJobs = () => {
     } catch (error) {
       console.error("[Cron] Error checking due tasks:", error);
     }
-  });
+  }, { timezone: "Asia/Kolkata" });
 
   // 10:25 AM check for users who haven't clocked in
   cron.schedule("25 10 * * *", async () => {
@@ -187,7 +188,7 @@ export const initCronJobs = () => {
     } catch (error) {
       console.error("[Cron] Error in 10:25 AM clock-in reminder:", error);
     }
-  });
+  }, { timezone: "Asia/Kolkata" });
 
   // 6:55 PM check for users who haven't clocked out
   cron.schedule("55 18 * * *", async () => {
@@ -210,7 +211,7 @@ export const initCronJobs = () => {
     } catch (error) {
       console.error("[Cron] Error in 6:55 PM clock-out reminder:", error);
     }
-  });
+  }, { timezone: "Asia/Kolkata" });
   // Every 30 minutes check for incomplete tasks for clocked-in team members
   cron.schedule("*/30 * * * *", async () => {
     console.log("[Cron] Running 30-minute incomplete task reminder...");
@@ -253,7 +254,7 @@ export const initCronJobs = () => {
     } catch (error) {
       console.error("[Cron] Error in 30-minute incomplete task reminder:", error);
     }
-  });
+  }, { timezone: "Asia/Kolkata" });
 
   // Annual Leave Balance Reset (Run on Jan 1st at 00:00)
   cron.schedule("0 0 1 1 *", async () => {
@@ -296,7 +297,7 @@ export const initCronJobs = () => {
     } catch (error) {
       console.error("[Cron] Error in Annual Leave Balance Reset:", error);
     }
-  });
+  }, { timezone: "Asia/Kolkata" });
 
   // Monthly Leave Credits (e.g., MSL) (Run on the 1st of every month at 00:00)
   cron.schedule("0 0 1 * *", async () => {
@@ -335,7 +336,7 @@ export const initCronJobs = () => {
     } catch (error) {
       console.error("[Cron] Error in Monthly Leave Credits:", error);
     }
-  });
+  }, { timezone: "Asia/Kolkata" });
 
   // Monthly on the 1st day at 00:00 - Deduct unused monthly use-it-or-lose-it leaves (like Earned/Menstrual)
   cron.schedule("0 0 1 * *", async () => {
@@ -384,5 +385,5 @@ export const initCronJobs = () => {
     } catch (error) {
       console.error("[Cron] Error in monthly leave expiry check:", error);
     }
-  });
+  }, { timezone: "Asia/Kolkata" });
 };

@@ -4,6 +4,7 @@ import User from "../models/User.js";
 import Attendance from "../models/Attendance.js";
 import AuditLog from "../models/AuditLog.js";
 import { requireActiveOrganizationId } from "../utils/organizationScope.js";
+import { getISTDateString } from "../utils/dateUtils.js";
 
 export const exportTaskReport = async (req, res) => {
   try {
@@ -33,7 +34,7 @@ export const exportTaskReport = async (req, res) => {
     const activeUsers = await User.find({
       organizationId,
       isActive: true,
-      role: { $ne: "client" }
+      role: { $nin: ["client", "superadmin"] }
     }).select("name email role gender");
 
     const usersMap = {};
@@ -172,7 +173,7 @@ export const exportTaskReport = async (req, res) => {
         // Wait, the requirement says "Show actual assigned tasks" if present.
         // Let's just find tasks created on this specific day to represent "Assigned Tasks".
         const dailyTasks = userTasks.filter(t => {
-          const tDate = new Date(t.createdAt).toISOString().split("T")[0];
+          const tDate = getISTDateString(t.createdAt);
           return tDate === dateStr;
         });
 
@@ -214,8 +215,8 @@ export const exportTaskReport = async (req, res) => {
               taskName: t.title,
               project: t.projectId?.name || "-", 
               assignedBy: t.createdBy?.name || "-",
-              assignedTime: new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              completionTime: t.status === "completed" ? new Date(t.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "-",
+              assignedTime: new Date(t.createdAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }),
+              completionTime: t.status === "completed" ? new Date(t.updatedAt).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' }) : "-",
               status: t.status,
               workingDayStatus: workStatus,
               remarks: remarks
