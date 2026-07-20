@@ -9,10 +9,13 @@ import SoftLoader from "@/components/ui/SoftLoader";
 import ClockInOutCard from "@/components/attendance/ClockInOutCard";
 import Pagination from "@/components/ui/Pagination";
 import { usePaginationLimit } from "@/hooks/usePaginationLimit";
+import AttendanceQuickViewModal from "@/components/attendance/AttendanceQuickViewModal";
+import { Calendar } from "lucide-react";
 
 export default function AttendancePage() {
   const { user } = useMe();
   const [loading, setLoading] = useState(true);
+  const [quickViewUser, setQuickViewUser] = useState<any>(null);
   const [myAttendance, setMyAttendance] = useState<any[]>([]);
   const [allAttendance, setAllAttendance] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
@@ -259,7 +262,18 @@ export default function AttendancePage() {
 
           {activeTab === "my" && (
             <div className="flex flex-col lg:flex-row gap-8 items-start">
-              <ClockInOutCard attendanceToday={attendanceToday} onUpdate={loadData} />
+              <div className="flex flex-col gap-4 w-full max-w-md shrink-0">
+                <ClockInOutCard attendanceToday={attendanceToday} onUpdate={loadData} />
+                <button 
+                  onClick={() => setQuickViewUser(user)}
+                  className="w-full py-4 bg-[#11161D] hover:bg-white/5 text-white rounded-3xl text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 border border-white/5 shadow-xl group"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Calendar size={16} />
+                  </div>
+                  My Calendar Quick View
+                </button>
+              </div>
               
               <div className="flex-1 bg-[#11161D] border border-white/5 rounded-3xl p-6 shadow-xl w-full">
                 <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
@@ -403,8 +417,15 @@ export default function AttendancePage() {
                   </thead>
                   <tbody>
                     {requests.map(r => (
-                      <tr key={r._id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                        <td className="px-4 py-4 font-bold text-gray-300">{r.userId?.name}</td>
+                      <tr key={r._id} className={`border-b hover:bg-white/[0.02] ${r.isManual ? 'border-red-500/30 bg-red-500/5' : 'border-white/5'}`}>
+                        <td className="px-4 py-4 font-bold text-gray-300 flex items-center gap-2">
+                          {r.isManual && (
+                            <span className="flex items-center justify-center min-w-[20px] min-h-[20px] w-5 h-5 bg-red-500/20 border border-red-500/50 text-red-500 rounded-full text-[10px] font-black shadow-[0_0_10px_rgba(239,68,68,0.3)]" title="Manual Correction Request">
+                              !
+                            </span>
+                          )}
+                          {r.userId?.name}
+                        </td>
                         <td className="px-4 py-4 whitespace-normal max-w-[280px] break-words">{r.reason}</td>
                         <td className="px-4 py-4">{r.requestedClockIn ? new Date(r.requestedClockIn).toLocaleString() : '-'}</td>
                         <td className="px-4 py-4">{r.requestedClockOut ? new Date(r.requestedClockOut).toLocaleString() : '-'}</td>
@@ -505,7 +526,11 @@ export default function AttendancePage() {
                       }
 
                       return (
-                        <tr key={user._id} className="border-b border-white/5 hover:bg-white/[0.02]">
+                        <tr 
+                          key={user._id} 
+                          className="border-b border-white/5 hover:bg-white/[0.02] cursor-pointer"
+                          onClick={() => setQuickViewUser(user)}
+                        >
                           <td className="px-4 py-4 font-bold text-gray-300">{user.name}</td>
                           <td className="px-4 py-4 text-gray-400 capitalize">{user.gender === "not_specified" ? "-" : (user.gender || "-")}</td>
                           <td className="px-4 py-4">{record?.clockIn ? new Date(record.clockIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
@@ -518,7 +543,7 @@ export default function AttendancePage() {
                           </td>
                           <td className="px-4 py-4">
                             {record && (
-                              <button onClick={() => openEditModal(record)} className="px-2 py-1 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white rounded-lg text-xs font-bold transition">Edit</button>
+                              <button onClick={(e) => { e.stopPropagation(); openEditModal(record); }} className="px-2 py-1 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white rounded-lg text-xs font-bold transition">Edit</button>
                             )}
                           </td>
                         </tr>
@@ -726,6 +751,10 @@ export default function AttendancePage() {
             </div>
           </div>
         </div>
+      )}
+      
+      {quickViewUser && (
+        <AttendanceQuickViewModal user={quickViewUser} onClose={() => setQuickViewUser(null)} />
       )}
     </DashboardLayout>
   );

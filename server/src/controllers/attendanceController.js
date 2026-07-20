@@ -222,7 +222,14 @@ export const getMyAttendance = async (req, res) => {
       await pending.save();
     }
 
-    const attendance = await Attendance.find({ userId: req.user._id })
+    const { month, year } = req.query;
+    const query = { userId: req.user._id };
+    if (month && year) {
+      const regex = new RegExp(`^${year}-${month.padStart(2, '0')}-`);
+      query.attendanceDate = { $regex: regex };
+    }
+
+    const attendance = await Attendance.find(query)
       .sort({ attendanceDate: -1 });
 
     res.json({ attendance });
@@ -234,11 +241,15 @@ export const getMyAttendance = async (req, res) => {
 export const getAllAttendance = async (req, res) => {
   try {
     const organizationId = await requireActiveOrganizationId(req);
-    const { date, user } = req.query;
+    const { date, user, month, year } = req.query;
 
     const query = { organizationId };
     if (date) query.attendanceDate = date;
     if (user) query.userId = user;
+    if (month && year) {
+      const regex = new RegExp(`^${year}-${month.padStart(2, '0')}-`);
+      query.attendanceDate = { $regex: regex };
+    }
 
     const attendance = await Attendance.find(query)
       .populate({
@@ -331,6 +342,7 @@ export const requestCorrection = async (req, res) => {
       requestedClockIn,
       requestedClockOut,
       reason,
+      isManual: true,
     });
 
     res.status(201).json({ message: "Correction request submitted.", request });
@@ -626,24 +638,59 @@ export const exportAttendance = async (req, res) => {
     summarySheet.getRow(1).font = { bold: true };
 
     const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
+    let totalWorkingDays = 0;
+    for (let day = 1; day <= daysInMonth; day++) {
+      if (new Date(yearNum, monthNum - 1, day).getDay() !== 0) {
+        totalWorkingDays++;
+      }
+    }
 
     users.forEach((user) => {
       const userRecords = attendanceRecords.filter(
         (r) => r.userId?._id.toString() === user._id.toString()
       );
 
-      const daysPresent = userRecords.filter((r) => r.status === "Present" || r.status === "Half Day" || r.status === "Late").length;
-      const daysAbsent = daysInMonth - daysPresent;
-      const totalHours = userRecords.reduce((acc, r) => acc + (r.totalHours || 0), 0);
-      const avgHours = daysPresent > 0 ? (totalHours / daysPresent).toFixed(2) : 0;
-      const lateArrivals = userRecords.filter((r) => r.status === "Late").length; // assuming late logic if present
-      const percentage = ((daysPresent / daysInMonth) * 100).toFixed(2);
+      let present = 0;
+      let halfDay = 0;
+      let leave = 0;
+      let lateArrivals = 0;
+      let totalHours = 0;
+
+      userRecords.forEach((r) => {
+        let status = r.status;
+        // Correct backend Sunday absent records to Weekly Off
+        if (status === "Absent") {
+           const recordDate = new Date(r.attendanceDate);
+           if (recordDate.getDay() === 0) status = "Weekly Off";
+        }
+
+        if (status === "Present" || status === "Late") {
+          present++;
+          if (status === "Late") lateArrivals++;
+        } else if (status === "Half Day") {
+          halfDay++;
+        } else if (status === "Leave" || status === "Weekly Off") {
+          const recordDate = new Date(r.attendanceDate);
+          if (recordDate.getDay() !== 0) {
+            leave++;
+          }
+        }
+        if (r.totalHours) totalHours += r.totalHours;
+      });
+
+      const effectiveWorkingDays = totalWorkingDays - leave;
+      const daysAbsent = Math.max(0, effectiveWorkingDays - present - halfDay);
+      const score = present + (halfDay * 0.5);
+      const percentage = effectiveWorkingDays > 0 ? ((score / effectiveWorkingDays) * 100).toFixed(2) : 0;
+      const daysPresentStr = halfDay > 0 ? `${present} (+${halfDay} Half)` : `${present}`;
+      
+      const avgHours = (present + halfDay) > 0 ? (totalHours / (present + halfDay)).toFixed(2) : 0;
 
       summarySheet.addRow({
         name: user.name,
         gender: user.gender === "not_specified" ? "-" : (user.gender || "-"),
-        workingDays: daysInMonth,
-        present: daysPresent,
+        workingDays: effectiveWorkingDays,
+        present: daysPresentStr,
         absent: daysAbsent,
         totalHours: totalHours.toFixed(2),
         avgHours,

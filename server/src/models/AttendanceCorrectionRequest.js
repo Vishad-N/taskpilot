@@ -32,6 +32,10 @@ const attendanceCorrectionRequestSchema = new mongoose.Schema(
       enum: ["Pending", "Approved", "Rejected", "Half Day"],
       default: "Pending",
     },
+    isManual: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

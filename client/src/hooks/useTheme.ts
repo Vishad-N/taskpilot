@@ -25,7 +25,7 @@ export function useTheme() {
     const stored =
       typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
     const initial = (stored === "dark" || stored === "light") ? stored : getPreferredTheme();
-
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(initial);
     applyThemeToDom(initial);
   }, []);

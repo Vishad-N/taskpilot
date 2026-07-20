@@ -21,7 +21,7 @@ export function useActiveOrganization() {
       storedOrganizationId && validOrganizationIds.has(storedOrganizationId)
         ? storedOrganizationId
         : user.activeOrganizationId || organizations[0]?._id || null;
-
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedOrganizationId(nextOrganizationId);
 
     if (typeof window !== "undefined") {
