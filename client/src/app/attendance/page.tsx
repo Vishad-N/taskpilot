@@ -416,7 +416,11 @@ export default function AttendancePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {requests.map(r => (
+                    {requests.map(r => {
+                      const reqDate = new Date(r.createdAt).toDateString();
+                      const isDuplicate = requests.filter(req => req.userId?._id === r.userId?._id && new Date(req.createdAt).toDateString() === reqDate && req.status === "Pending").length > 1;
+
+                      return (
                       <tr key={r._id} className={`border-b hover:bg-white/[0.02] ${r.isManual ? 'border-red-500/30 bg-red-500/5' : 'border-white/5'}`}>
                         <td className="px-4 py-4 font-bold text-gray-300 flex items-center gap-2">
                           {r.isManual && (
@@ -430,17 +434,20 @@ export default function AttendancePage() {
                         <td className="px-4 py-4">{r.requestedClockIn ? new Date(r.requestedClockIn).toLocaleString() : '-'}</td>
                         <td className="px-4 py-4">{r.requestedClockOut ? new Date(r.requestedClockOut).toLocaleString() : '-'}</td>
                         <td className="px-4 py-4">{r.status}</td>
-                        <td className="px-4 py-4 flex gap-2">
+                        <td className="px-4 py-4 flex flex-wrap gap-2">
                           {r.status === "Pending" && (
                             <>
                               <button onClick={() => handleReqStatus(r._id, "Approved")} className="px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg text-xs font-bold transition hover:bg-emerald-500/20">Approve</button>
                               <button onClick={() => handleReqStatus(r._id, "Half Day")} className="px-2 py-1 bg-amber-500/10 text-amber-400 rounded-lg text-xs font-bold transition hover:bg-amber-500/20">Half Day</button>
                               <button onClick={() => handleReqStatus(r._id, "Rejected")} className="px-2 py-1 bg-red-500/10 text-red-400 rounded-lg text-xs font-bold transition hover:bg-red-500/20">Reject</button>
+                              {isDuplicate && (
+                                <button onClick={() => handleReqStatus(r._id, "Ignored")} className="px-2 py-1 bg-gray-500/10 text-gray-400 rounded-lg text-xs font-bold transition hover:bg-gray-500/20" title="Mark as read / Ignore">Ignore</button>
+                              )}
                             </>
                           )}
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>

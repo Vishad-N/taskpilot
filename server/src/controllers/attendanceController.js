@@ -421,28 +421,47 @@ export const updateCorrectionRequest = async (req, res) => {
       }
 
       if (attendance) {
-        if (request.requestedClockIn) attendance.clockIn = request.requestedClockIn;
-        if (request.requestedClockOut) attendance.clockOut = request.requestedClockOut;
-
-        if (attendance.clockIn && attendance.clockOut) {
-          const diffMs = new Date(attendance.clockOut).getTime() - new Date(attendance.clockIn).getTime();
-          attendance.totalHours = diffMs / (1000 * 60 * 60);
+        let canModify = true;
+        
+        // Safety check: Don't let automatic requests overwrite manual corrections
+        if (!request.isManual) {
+          const hasManual = await AttendanceCorrectionRequest.exists({
+            attendanceId: attendance._id,
+            isManual: true,
+            status: { $in: ["Approved", "Half Day"] }
+          });
+          
+          const wasDirectlyEdited = attendance.corrected && attendance.correctionReason && !attendance.correctionReason.startsWith("Correction request");
+          
+          if (hasManual || wasDirectlyEdited) {
+            canModify = false;
+          }
         }
 
-        attendance.corrected = true;
-        attendance.correctedBy = req.user._id;
-        attendance.correctionReason = `Correction request ${status.toLowerCase()}: ${request.reason}`;
+        if (canModify) {
+          if (request.requestedClockIn) attendance.clockIn = request.requestedClockIn;
+          if (request.requestedClockOut) attendance.clockOut = request.requestedClockOut;
 
-        if (status === "Half Day") {
-          attendance.status = "Half Day";
-        } else if (status === "Approved") {
-          attendance.status = "Present";
+          if (attendance.clockIn && attendance.clockOut) {
+            const diffMs = new Date(attendance.clockOut).getTime() - new Date(attendance.clockIn).getTime();
+            attendance.totalHours = diffMs / (1000 * 60 * 60);
+          }
+
+          attendance.corrected = true;
+          attendance.correctedBy = req.user._id;
+          attendance.correctionReason = `Correction request ${status.toLowerCase()}: ${request.reason}`;
+
+          if (status === "Half Day") {
+            attendance.status = "Half Day";
+          } else if (status === "Approved") {
+            attendance.status = "Present";
+          }
+
+          await attendance.save();
+
+          const finalAttendance = await Attendance.findById(attendance._id).populate("userId", "name email");
+          getIO().to(`org:${request.organizationId}`).emit("attendance_updated", finalAttendance);
         }
-
-        await attendance.save();
-
-        const finalAttendance = await Attendance.findById(attendance._id).populate("userId", "name email");
-        getIO().to(`org:${request.organizationId}`).emit("attendance_updated", finalAttendance);
       }
     }
 
