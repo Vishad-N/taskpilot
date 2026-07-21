@@ -440,9 +440,7 @@ export default function AttendancePage() {
                               <button onClick={() => handleReqStatus(r._id, "Approved")} className="px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg text-xs font-bold transition hover:bg-emerald-500/20">Approve</button>
                               <button onClick={() => handleReqStatus(r._id, "Half Day")} className="px-2 py-1 bg-amber-500/10 text-amber-400 rounded-lg text-xs font-bold transition hover:bg-amber-500/20">Half Day</button>
                               <button onClick={() => handleReqStatus(r._id, "Rejected")} className="px-2 py-1 bg-red-500/10 text-red-400 rounded-lg text-xs font-bold transition hover:bg-red-500/20">Reject</button>
-                              {isDuplicate && (
-                                <button onClick={() => handleReqStatus(r._id, "Ignored")} className="px-2 py-1 bg-gray-500/10 text-gray-400 rounded-lg text-xs font-bold transition hover:bg-gray-500/20" title="Mark as read / Ignore">Ignore</button>
-                              )}
+                              <button onClick={() => handleReqStatus(r._id, "Ignored")} className="px-2 py-1 bg-gray-500/10 text-gray-400 rounded-lg text-xs font-bold transition hover:bg-gray-500/20" title="Mark as read / Ignore">Ignore</button>
                             </>
                           )}
                         </td>

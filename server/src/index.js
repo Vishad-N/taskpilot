@@ -105,7 +105,12 @@ app.use((error, _req, res, _next) => {
   });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
+  try {
+    await connectDb();
+  } catch (error) {
+    console.error("Failed to connect to database on startup:", error);
+  }
   console.log(`TaskPilot backend running on http://localhost:${PORT}`);
   initCronJobs();
 });

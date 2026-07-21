@@ -58,6 +58,8 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   const { user } = useMe();
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingAttendanceRequests, setPendingAttendanceRequests] = useState(0);
+  const [pendingLeaveRequests, setPendingLeaveRequests] = useState(0);
+  const [pendingApprovals, setPendingApprovals] = useState(0);
   const [activeSession, setActiveSession] = useState<ActiveWorkSession | null>(
     null,
   );
@@ -86,6 +88,22 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
             .get("/attendance/analytics")
             .then((res) => {
               setPendingAttendanceRequests(res.data.pendingRequests || 0);
+            })
+            .catch(() => {});
+            
+          api
+            .get("/leaves/analytics")
+            .then((res) => {
+              setPendingLeaveRequests(res.data.pendingCount || 0);
+            })
+            .catch(() => {});
+        }
+
+        if (user.role === "superadmin") {
+          api
+            .get("/users/pending?limit=1")
+            .then((res) => {
+              setPendingApprovals(res.data.totalRecords || 0);
             })
             .catch(() => {});
         }
@@ -347,6 +365,24 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
                       suppressHydrationWarning
                     >
                       {pendingAttendanceRequests > 9 ? "9+" : pendingAttendanceRequests}
+                    </span>
+                  )}
+                  
+                  {item.name === "Leaves" && pendingLeaveRequests > 0 && (
+                    <span
+                      className="z-20 ml-auto rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-extrabold text-[var(--foreground)] shadow-[0_0_10px_rgba(245,158,11,0.3)]"
+                      suppressHydrationWarning
+                    >
+                      {pendingLeaveRequests > 9 ? "9+" : pendingLeaveRequests}
+                    </span>
+                  )}
+
+                  {item.name === "Approvals" && pendingApprovals > 0 && (
+                    <span
+                      className="z-20 ml-auto rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-extrabold text-[var(--foreground)] shadow-[0_0_10px_rgba(245,158,11,0.3)]"
+                      suppressHydrationWarning
+                    >
+                      {pendingApprovals > 9 ? "9+" : pendingApprovals}
                     </span>
                   )}
 
