@@ -14,7 +14,7 @@ export type MeUser = {
   _id: string;
   name: string;
   email: string;
-  role: "superadmin" | "admin" | "team" | "client";
+  role: "superadmin" | "admin" | "team" | "client" | "developer";
   gender?: "male" | "female" | "not_specified";
   isAccountFrozen?: boolean;
   organizationId?: string;
@@ -63,7 +63,15 @@ export function MeProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         const res = await api.get("/auth/me");
-        if (!cancelled) setUser(res.data.user);
+        if (!cancelled) {
+          const fetchedUser = res.data.user;
+          // Frontend masquerade: treat 'developer' as 'superadmin' on the client side 
+          // so they have access to all panels without modifying every role check in the UI.
+          if (fetchedUser && fetchedUser.role === "developer") {
+            fetchedUser.role = "superadmin";
+          }
+          setUser(fetchedUser);
+        }
       } catch (err: unknown) {
         if (!cancelled) {
           setUser(null);

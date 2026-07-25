@@ -27,7 +27,7 @@ export const getRequestedOrganizationId = (req) => {
 };
 
 export const getAccessibleOrganizationIds = async (req) => {
-  if (req.user.role === "superadmin") {
+  if (req.user.role === "superadmin" || req.user.role === "developer") {
     const organizations = await Organization.find({ isActive: true }).select("_id");
     return organizations.map((organization) => String(organization._id));
   }

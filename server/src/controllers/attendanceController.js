@@ -28,6 +28,37 @@ function getDistanceFromLatLonInM(lat1, lon1, lat2, lon2) {
 
 const getTodayDateString = () => getISTDateString();
 
+// Shared helper to auto-close pending attendance records from previous days (UTC safe)
+const autoClosePendingAttendances = async (query = {}) => {
+  try {
+    const today = getTodayDateString();
+    const pendingAttendances = await Attendance.find({
+      ...query,
+      attendanceDate: { $ne: today },
+      clockIn: { $exists: true, $ne: null },
+      clockOut: null,
+    });
+
+    for (const pending of pendingAttendances) {
+      const autoOut = new Date(pending.clockIn);
+      // Correctly represent 7:00 PM IST (13:30 UTC) on production cloud servers
+      autoOut.setUTCHours(13, 30, 0, 0);
+
+      if (autoOut <= pending.clockIn) {
+        pending.clockOut = pending.clockIn;
+        pending.totalHours = 0;
+      } else {
+        pending.clockOut = autoOut;
+        const diffMs = autoOut.getTime() - pending.clockIn.getTime();
+        pending.totalHours = diffMs / (1000 * 60 * 60);
+      }
+      await pending.save();
+    }
+  } catch (err) {
+    console.error("Error auto-closing pending attendances:", err);
+  }
+};
+
 export const clockIn = async (req, res) => {
   try {
     const organizationId = await requireActiveOrganizationId(req);
@@ -48,29 +79,8 @@ export const clockIn = async (req, res) => {
     const today = getTodayDateString();
     const now = new Date();
 
-    // Fix for: if user forgets to clock out yesterday, auto clock them out at 7:00 PM of that day
-    const pendingAttendances = await Attendance.find({
-      userId: req.user._id,
-      attendanceDate: { $ne: today },
-      clockIn: { $exists: true, $ne: null },
-      clockOut: null,
-    });
-
-    for (const pending of pendingAttendances) {
-      const autoOut = new Date(pending.clockIn);
-      autoOut.setHours(19, 0, 0, 0); // 7:00 PM local time of the clock-in date
-
-      // If the clock in was somehow AFTER 7:00 PM, just add 0 hours
-      if (autoOut <= pending.clockIn) {
-        pending.clockOut = pending.clockIn;
-        pending.totalHours = 0;
-      } else {
-        pending.clockOut = autoOut;
-        const diffMs = autoOut.getTime() - pending.clockIn.getTime();
-        pending.totalHours = diffMs / (1000 * 60 * 60);
-      }
-      await pending.save();
-    }
+    // Auto-close any pending records from previous days
+    await autoClosePendingAttendances({ userId: req.user._id });
 
     const existingAttendance = await Attendance.findOne({
       userId: req.user._id,
@@ -200,27 +210,7 @@ export const getMyAttendance = async (req, res) => {
     const today = getTodayDateString();
 
     // Auto-close any pending records from previous days
-    const pendingAttendances = await Attendance.find({
-      userId: req.user._id,
-      attendanceDate: { $ne: today },
-      clockIn: { $exists: true, $ne: null },
-      clockOut: null,
-    });
-
-    for (const pending of pendingAttendances) {
-      const autoOut = new Date(pending.clockIn);
-      autoOut.setHours(19, 0, 0, 0); // 7:00 PM local time of the clock-in date
-
-      if (autoOut <= pending.clockIn) {
-        pending.clockOut = pending.clockIn;
-        pending.totalHours = 0;
-      } else {
-        pending.clockOut = autoOut;
-        const diffMs = autoOut.getTime() - pending.clockIn.getTime();
-        pending.totalHours = diffMs / (1000 * 60 * 60);
-      }
-      await pending.save();
-    }
+    await autoClosePendingAttendances({ userId: req.user._id });
 
     const { month, year } = req.query;
     const query = { userId: req.user._id };
@@ -241,6 +231,7 @@ export const getMyAttendance = async (req, res) => {
 export const getAllAttendance = async (req, res) => {
   try {
     const organizationId = await requireActiveOrganizationId(req);
+    await autoClosePendingAttendances({ organizationId });
     const { date, user, month, year } = req.query;
 
     const query = { organizationId };
@@ -257,12 +248,20 @@ export const getAllAttendance = async (req, res) => {
         select: "name email gender role",
         match: { role: { $ne: "superadmin" } }
       })
-      .populate("correctedBy", "name")
+      .populate("correctedBy", "name role")
       .sort({ attendanceDate: -1 });
 
     const filteredAttendance = attendance.filter(a => a.userId !== null);
 
-    res.json({ attendance: filteredAttendance });
+    const sanitizedAttendance = filteredAttendance.map(a => {
+      const doc = a.toObject();
+      if (doc.correctedBy && doc.correctedBy.role === "developer") {
+        doc.correctedBy = null;
+      }
+      return doc;
+    });
+
+    res.json({ attendance: sanitizedAttendance });
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch all attendance records." });
   }
@@ -485,6 +484,7 @@ export const updateCorrectionRequest = async (req, res) => {
 export const getAnalytics = async (req, res) => {
   try {
     const organizationId = await requireActiveOrganizationId(req);
+    await autoClosePendingAttendances({ organizationId });
     const today = getTodayDateString();
 
     const allAttendanceToday = await Attendance.find({
@@ -533,6 +533,7 @@ export const getAnalytics = async (req, res) => {
 export const exportAttendance = async (req, res) => {
   try {
     const organizationId = await requireActiveOrganizationId(req);
+    await autoClosePendingAttendances({ organizationId });
     const { month, year, employeeId } = req.query;
 
     if (!month || !year) {
@@ -624,6 +625,11 @@ export const exportAttendance = async (req, res) => {
     dailySheet.getRow(1).font = { bold: true };
 
     attendanceRecords.forEach((record) => {
+      let status = record.status;
+      if (status === "Absent") {
+        const [y, m, d] = record.attendanceDate.split('-').map(Number);
+        if (new Date(y, m - 1, d).getDay() === 0) status = "Weekly Off";
+      }
       dailySheet.addRow({
         name: record.userId?.name || "Unknown",
         email: record.userId?.email || "Unknown",
@@ -633,7 +639,7 @@ export const exportAttendance = async (req, res) => {
         clockIn: record.clockIn ? new Date(record.clockIn).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }) : "-",
         clockOut: record.clockOut ? new Date(record.clockOut).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' }) : "-",
         hours: record.totalHours ? record.totalHours.toFixed(2) : "-",
-        status: record.status,
+        status,
         distance: record.distanceFromOffice ? Math.round(record.distanceFromOffice) : "-",
         corrected: record.corrected ? "Yes" : "No",
         correctionReason: record.correctionReason || "-",
@@ -657,11 +663,16 @@ export const exportAttendance = async (req, res) => {
     summarySheet.getRow(1).font = { bold: true };
 
     const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
-    let totalWorkingDays = 0;
-    for (let day = 1; day <= daysInMonth; day++) {
-      if (new Date(yearNum, monthNum - 1, day).getDay() !== 0) {
-        totalWorkingDays++;
-      }
+    const todayStr = getTodayDateString();
+    const [todayYear, todayMonth, todayDay] = todayStr.split('-').map(Number);
+
+    let lastEvaluatedDay = 0;
+    if (yearNum === todayYear && monthNum === todayMonth) {
+      lastEvaluatedDay = todayDay;
+    } else if (yearNum < todayYear || (yearNum === todayYear && monthNum < todayMonth)) {
+      lastEvaluatedDay = daysInMonth;
+    } else {
+      lastEvaluatedDay = 0;
     }
 
     users.forEach((user) => {
@@ -671,34 +682,59 @@ export const exportAttendance = async (req, res) => {
 
       let present = 0;
       let halfDay = 0;
+      let absent = 0;
       let leave = 0;
       let lateArrivals = 0;
       let totalHours = 0;
 
-      userRecords.forEach((r) => {
-        let status = r.status;
-        // Correct backend Sunday absent records to Weekly Off
-        if (status === "Absent") {
-           const recordDate = new Date(r.attendanceDate);
-           if (recordDate.getDay() === 0) status = "Weekly Off";
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${yearNum}-${monthNum.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+        const isSunday = new Date(yearNum, monthNum - 1, day).getDay() === 0;
+        const isPastOrToday = day <= lastEvaluatedDay;
+
+        const dbRecord = userRecords.find((r) => r.attendanceDate === dateStr);
+        let status = "Not Evaluated";
+        let hours = 0;
+
+        if (dbRecord) {
+          status = dbRecord.status;
+          hours = dbRecord.totalHours || 0;
+          if (status === "Absent" && isSunday) {
+            status = "Weekly Off";
+          }
+        } else {
+          if (isPastOrToday) {
+            if (isSunday) {
+              status = "Weekly Off";
+            } else {
+              const isPastDate = yearNum < todayYear || 
+                (yearNum === todayYear && monthNum < todayMonth) || 
+                (yearNum === todayYear && monthNum === todayMonth && day < todayDay);
+
+              if (isPastDate) {
+                status = "Absent";
+              } else {
+                status = "Pending";
+              }
+            }
+          }
         }
 
         if (status === "Present" || status === "Late") {
           present++;
           if (status === "Late") lateArrivals++;
+        } else if (status === "Absent") {
+          absent++;
         } else if (status === "Half Day") {
           halfDay++;
-        } else if (status === "Leave" || status === "Weekly Off") {
-          const recordDate = new Date(r.attendanceDate);
-          if (recordDate.getDay() !== 0) {
-            leave++;
-          }
+        } else if (status === "Leave" || status === "On Leave" || status === "Weekly Off") {
+          leave++;
         }
-        if (r.totalHours) totalHours += r.totalHours;
-      });
 
-      const effectiveWorkingDays = totalWorkingDays - leave;
-      const daysAbsent = Math.max(0, effectiveWorkingDays - present - halfDay);
+        totalHours += hours;
+      }
+
+      const effectiveWorkingDays = present + absent + halfDay;
       const score = present + (halfDay * 0.5);
       const percentage = effectiveWorkingDays > 0 ? ((score / effectiveWorkingDays) * 100).toFixed(2) : 0;
       const daysPresentStr = halfDay > 0 ? `${present} (+${halfDay} Half)` : `${present}`;
@@ -710,7 +746,7 @@ export const exportAttendance = async (req, res) => {
         gender: user.gender === "not_specified" ? "-" : (user.gender || "-"),
         workingDays: effectiveWorkingDays,
         present: daysPresentStr,
-        absent: daysAbsent,
+        absent,
         totalHours: totalHours.toFixed(2),
         avgHours,
         late: lateArrivals,
@@ -777,6 +813,10 @@ export const submitProposedClockOut = async (req, res) => {
       return res.status(400).json({ message: "This record is not currently awaiting a proposed time." });
     }
 
+    if (new Date(proposedTime) <= new Date(attendance.clockIn)) {
+      return res.status(400).json({ message: "Proposed clock out time must be strictly after clock in time." });
+    }
+
     attendance.proposedClockOut = new Date(proposedTime);
     attendance.freezeStatus = "submitted_time";
     await attendance.save();
@@ -821,6 +861,9 @@ export const resolveFrozenAccount = async (req, res) => {
     if (action === "unfreeze") {
       if (!attendance.proposedClockOut) {
         return res.status(400).json({ message: "Cannot unfreeze normally without a proposed clock out time. The user must submit it first." });
+      }
+      if (new Date(attendance.proposedClockOut) <= new Date(attendance.clockIn)) {
+        return res.status(400).json({ message: "Cannot unfreeze: proposed clock out time is before or equal to clock in time." });
       }
       attendance.clockOut = attendance.proposedClockOut;
       const diffMs = attendance.clockOut.getTime() - attendance.clockIn.getTime();

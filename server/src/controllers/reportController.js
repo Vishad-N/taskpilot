@@ -158,8 +158,10 @@ export const exportTaskReport = async (req, res) => {
       };
     }
 
+    const todayStr = getISTDateString();
+
     while (dateIterator <= end) {
-      const dateStr = dateIterator.toISOString().split("T")[0];
+      const dateStr = getISTDateString(dateIterator);
       const isSunday = dateIterator.getDay() === 0;
 
       for (const user of activeUsers) {
@@ -168,10 +170,6 @@ export const exportTaskReport = async (req, res) => {
         const userTasks = tasksByUser[uId] || [];
 
         // Filter tasks that belong to this day (created or updated or falls into range)
-        // Simplest approximation: if task was created <= this date AND (not completed OR completed on/after this date)
-        // A task is "assigned" on this day if its createdAt date matches this date.
-        // Wait, the requirement says "Show actual assigned tasks" if present.
-        // Let's just find tasks created on this specific day to represent "Assigned Tasks".
         const dailyTasks = userTasks.filter(t => {
           const tDate = getISTDateString(t.createdAt);
           return tDate === dateStr;
@@ -189,12 +187,19 @@ export const exportTaskReport = async (req, res) => {
           else if (workStatus === "Holiday") summaryData[uId].holidays++;
           
           if (workStatus === "Absent") remarks = "Absent";
+          else if (workStatus === "On Leave" || workStatus === "Leave") remarks = "On Leave";
           else remarks = "";
         } else {
           if (isSunday) {
             workStatus = "Sunday";
             remarks = "Weekly Off";
             summaryData[uId].sundays++;
+          } else if (dateStr > todayStr) {
+            workStatus = "Not Evaluated";
+            remarks = "Future Date";
+          } else if (dateStr === todayStr) {
+            workStatus = "Pending";
+            remarks = "Unevaluated Today";
           } else {
             summaryData[uId].absentDays++;
           }

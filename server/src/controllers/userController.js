@@ -142,6 +142,10 @@ export const getTeamUsers = async (req, res) => {
       ]
     };
 
+    if (req.user.role !== "developer") {
+      query.role = { $ne: "developer" };
+    }
+
     const [data, totalRecords] = await Promise.all([
       User.find(query)
         .select("name email role status isActive organizationId gender")
@@ -172,7 +176,7 @@ export const getAssignableUsers = async (req, res) => {
   try {
     const organizationId = await requireActiveOrganizationId(req);
 
-    const users = await User.find({
+    const query = {
       status: "approved",
       isActive: true,
       $or: [
@@ -185,7 +189,13 @@ export const getAssignableUsers = async (req, res) => {
         },
         { _id: req.user._id }
       ]
-    })
+    };
+
+    if (req.user.role !== "developer") {
+      query.role = { $ne: "developer" };
+    }
+
+    const users = await User.find(query)
       .select("name email role organizationId gender")
       .sort({ name: 1 });
 
@@ -206,6 +216,10 @@ export const getAllUsers = async (req, res) => {
     const { search, role, status, organizationId, isActive, gender } = req.query;
 
     const query = {};
+
+    if (req.user.role !== "developer") {
+      query.role = { $ne: "developer" };
+    }
 
     if (search) {
       query.$or = [

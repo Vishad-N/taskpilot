@@ -120,7 +120,7 @@ export default function AttendanceQuickViewModal({ user, onClose }: QuickViewMod
       if (d.status === "Present" || d.status === "Late") present++;
       else if (d.status === "Absent") absent++;
       else if (d.status === "Half Day") halfDay++;
-      else if (d.status === "Leave" || d.status === "Weekly Off") leave++;
+      else if (d.status === "Leave" || d.status === "On Leave" || d.status === "Weekly Off") leave++;
     });
 
     const baseDays = present + absent + halfDay;
@@ -239,7 +239,7 @@ export default function AttendanceQuickViewModal({ user, onClose }: QuickViewMod
                     } else if (status === "Half Day") {
                       bgClass = "bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20";
                       dotClass = "bg-amber-500";
-                    } else if (status === "Weekly Off" || status === "Leave") {
+                    } else if (status === "Weekly Off" || status === "Leave" || status === "On Leave") {
                       bgClass = "bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-500/20";
                       dotClass = "bg-blue-500";
                     } else if (isFuture) {
