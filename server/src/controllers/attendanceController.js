@@ -651,6 +651,7 @@ export const exportAttendance = async (req, res) => {
     summarySheet.columns = [
       { header: "Employee Name", key: "name", width: 25 },
       { header: "Gender", key: "gender", width: 15 },
+      { header: "Total Days", key: "totalDays", width: 15 },
       { header: "Total Working Days", key: "workingDays", width: 20 },
       { header: "Days Present", key: "present", width: 15 },
       { header: "Days Absent", key: "absent", width: 15 },
@@ -744,6 +745,7 @@ export const exportAttendance = async (req, res) => {
       summarySheet.addRow({
         name: user.name,
         gender: user.gender === "not_specified" ? "-" : (user.gender || "-"),
+        totalDays: lastEvaluatedDay,
         workingDays: effectiveWorkingDays,
         present: daysPresentStr,
         absent,
