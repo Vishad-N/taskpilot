@@ -30,33 +30,9 @@ const getTodayDateString = () => getISTDateString();
 
 // Shared helper to auto-close pending attendance records from previous days (UTC safe)
 const autoClosePendingAttendances = async (query = {}) => {
-  try {
-    const today = getTodayDateString();
-    const pendingAttendances = await Attendance.find({
-      ...query,
-      attendanceDate: { $ne: today },
-      clockIn: { $exists: true, $ne: null },
-      clockOut: null,
-    });
-
-    for (const pending of pendingAttendances) {
-      const autoOut = new Date(pending.clockIn);
-      // Correctly represent 7:00 PM IST (13:30 UTC) on production cloud servers
-      autoOut.setUTCHours(13, 30, 0, 0);
-
-      if (autoOut <= pending.clockIn) {
-        pending.clockOut = pending.clockIn;
-        pending.totalHours = 0;
-      } else {
-        pending.clockOut = autoOut;
-        const diffMs = autoOut.getTime() - pending.clockIn.getTime();
-        pending.totalHours = diffMs / (1000 * 60 * 60);
-      }
-      await pending.save();
-    }
-  } catch (err) {
-    console.error("Error auto-closing pending attendances:", err);
-  }
+  // Feature disabled: We no longer auto-close missing clock-outs to 7:00 PM. 
+  // Missing clock-outs will stay null so they can be accurately tracked.
+  return;
 };
 
 export const clockIn = async (req, res) => {
@@ -167,14 +143,16 @@ export const clockIn = async (req, res) => {
 
 export const clockOut = async (req, res) => {
   try {
+    const today = getTodayDateString();
     const attendance = await Attendance.findOne({
       userId: req.user._id,
+      attendanceDate: today,
       clockIn: { $ne: null },
       clockOut: null,
-    }).sort({ attendanceDate: -1 });
+    });
 
     if (!attendance) {
-      return res.status(400).json({ message: "You have not clocked in or already clocked out." });
+      return res.status(400).json({ message: "No valid clock-in found for today, or already clocked out." });
     }
 
     if (!attendance.clockIn) {
@@ -420,6 +398,13 @@ export const updateCorrectionRequest = async (req, res) => {
       }
 
       if (attendance) {
+        // Prevent standard correction requests from modifying frozen records
+        if (["frozen", "submitted_time"].includes(attendance.freezeStatus)) {
+          request.status = "Pending";
+          await request.save();
+          return res.status(400).json({ message: "This attendance record is frozen. Please resolve the missing clock-out in the Frozen Accounts section first to unfreeze the user." });
+        }
+
         let canModify = true;
         
         // Safety check: Don't let automatic requests overwrite manual corrections
