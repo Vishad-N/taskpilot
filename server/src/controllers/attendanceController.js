@@ -67,10 +67,12 @@ export const clockIn = async (req, res) => {
       return res.status(400).json({ message: "You have already clocked in today." });
     }
 
-    // Convert current time to IST to get the accurate local hour regardless of server timezone (UTC on Hostinger)
-    const options = { timeZone: 'Asia/Kolkata', hour: 'numeric', hourCycle: 'h23' };
-    const istHour = parseInt(new Intl.DateTimeFormat('en-US', options).format(now), 10);
-    const isLate = istHour >= 12;
+    // Convert current time to IST to get the accurate local hour and minute regardless of server timezone (UTC on Hostinger)
+    const optionsHour = { timeZone: 'Asia/Kolkata', hour: 'numeric', hourCycle: 'h23' };
+    const optionsMinute = { timeZone: 'Asia/Kolkata', minute: 'numeric' };
+    const istHour = parseInt(new Intl.DateTimeFormat('en-US', optionsHour).format(now), 10);
+    const istMinute = parseInt(new Intl.DateTimeFormat('en-US', optionsMinute).format(now), 10);
+    const isLate = istHour > 10 || (istHour === 10 && istMinute >= 50);
 
     if (existingAttendance) {
       existingAttendance.clockIn = now;
@@ -85,7 +87,7 @@ export const clockIn = async (req, res) => {
           organizationId,
           attendanceId: existingAttendance._id,
           requestedClockIn: now,
-          reason: "Late clock-in attempt after 12:00 PM",
+          reason: "Late clock-in attempt after 10:50 AM",
         });
 
         const finalRecord = await Attendance.findById(existingAttendance._id).populate("userId", "name email");
@@ -119,7 +121,7 @@ export const clockIn = async (req, res) => {
         organizationId,
         attendanceId: attendance._id,
         requestedClockIn: now,
-        reason: "Late clock-in attempt after 12:00 PM",
+        reason: "Late clock-in attempt after 10:50 AM",
       });
 
       const finalAttendance = await Attendance.findById(attendance._id).populate("userId", "name email");
