@@ -383,7 +383,9 @@ export const updateCorrectionRequest = async (req, res) => {
         // Missing attendance creation
         const dateString = request.requestedClockIn
           ? getISTDateString(request.requestedClockIn)
-          : getTodayDateString();
+          : request.requestedClockOut
+            ? getISTDateString(request.requestedClockOut)
+            : getISTDateString(request.createdAt);
 
         attendance = await Attendance.findOne({
           userId: request.userId,
@@ -429,7 +431,16 @@ export const updateCorrectionRequest = async (req, res) => {
           if (request.requestedClockOut) attendance.clockOut = request.requestedClockOut;
 
           if (attendance.clockIn && attendance.clockOut) {
-            const diffMs = new Date(attendance.clockOut).getTime() - new Date(attendance.clockIn).getTime();
+            const clockInTime = new Date(attendance.clockIn).getTime();
+            const clockOutTime = new Date(attendance.clockOut).getTime();
+            
+            if (clockOutTime <= clockInTime) {
+              request.status = "Pending";
+              await request.save();
+              return res.status(400).json({ message: "Approving this request would result in a clock-out time before or equal to the clock-in time." });
+            }
+            
+            const diffMs = clockOutTime - clockInTime;
             attendance.totalHours = diffMs / (1000 * 60 * 60);
           }
 
