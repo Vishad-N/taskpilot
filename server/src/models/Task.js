@@ -106,6 +106,35 @@ const taskSchema = new mongoose.Schema(
           default: Date.now
         }
       }
+    ],
+
+    attachments: [
+      {
+        key: {
+          type: String, // Cloudflare R2 object key
+          required: true
+        },
+        filename: {
+          type: String,
+          required: true
+        },
+        fileType: {
+          type: String,
+          required: true
+        },
+        size: {
+          type: Number, // File size in bytes
+          required: true
+        },
+        uploadedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User"
+        },
+        uploadedAt: {
+          type: Date,
+          default: Date.now
+        }
+      }
     ]
   },
   { timestamps: true }

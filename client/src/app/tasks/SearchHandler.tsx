@@ -20,6 +20,7 @@ type TaskCreateFormState = {
   endDate: string;
   deadlineDate: string;
   clientVisible: boolean;
+  attachments: any[];
 };
 
 export default function SearchHandler({

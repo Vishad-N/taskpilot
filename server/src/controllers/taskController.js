@@ -545,7 +545,8 @@ export const createTask = async (req, res) => {
       startDate,
       endDate,
       deadlineDate,
-      clientVisible
+      clientVisible,
+      attachments
     } = req.body;
 
     if (!title || (!projectId && !parentTaskId)) {
@@ -618,7 +619,8 @@ export const createTask = async (req, res) => {
       dueDate: normalizedDeadlineDate,
       clientVisible: typeof clientVisible === "boolean" ? clientVisible : (parentTask?.clientVisible ?? false),
       createdBy: req.user._id,
-      organizationId: project.organizationId
+      organizationId: project.organizationId,
+      attachments: attachments || []
     });
 
     if (assigneeIds.length > 0) {

@@ -11,6 +11,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import SearchHandler from "./SearchHandler";
 import SoftLoader from "@/components/ui/SoftLoader";
 import { useToast } from "@/components/ui/ToastProvider";
+import FileUpload from "@/components/ui/FileUpload";
+import AttachmentList from "@/components/ui/AttachmentList";
 import { PencilSimple, Trash } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePaginationLimit } from "@/hooks/usePaginationLimit";
@@ -105,7 +107,8 @@ export default function TasksPage() {
     startDate: "",
     endDate: "",
     deadlineDate: "",
-    clientVisible: true
+    clientVisible: true,
+    attachments: [] as any[]
   });
   const [creating, setCreating] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -268,7 +271,8 @@ export default function TasksPage() {
         startDate: "",
         endDate: "",
         deadlineDate: "",
-        clientVisible: true
+        clientVisible: true,
+        attachments: []
       });
       setAssigneeDraft("");
       showToast({
@@ -1097,6 +1101,20 @@ export default function TasksPage() {
                       className="w-full bg-white/5 border border-white/5 rounded-2xl px-6 py-4 text-xs font-black text-white focus:border-emerald-500/50 outline-none transition uppercase tracking-tighter"
                     />
                   </div>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[9px] uppercase tracking-[0.3em] font-black text-gray-500 ml-4 flex items-center gap-2">
+                    Reference Files
+                  </label>
+                  {formData.attachments.length > 0 && (
+                    <div className="mb-4">
+                      <AttachmentList attachments={formData.attachments} />
+                    </div>
+                  )}
+                  <FileUpload 
+                    onUploadComplete={(file) => setFormData(p => ({ ...p, attachments: [...p.attachments, file] }))} 
+                  />
                 </div>
 
                 <div className="pt-6 flex flex-col md:flex-row items-center justify-between gap-6 border-t border-white/5">

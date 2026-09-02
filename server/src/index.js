@@ -28,6 +28,7 @@ import dailyUpdateRoutes from "./routes/dailyUpdates.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
 import leaveRoutes from "./routes/leaveRoutes.js";
 import reportRoutes from "./routes/reports.js";
+import uploadRoutes from "./routes/upload.js";
 import { initCronJobs } from "./utils/cronJobs.js";
 import { initSocket } from "./services/socketHandler.js";
 import http from "http";
@@ -94,6 +95,7 @@ app.use("/daily-updates", dailyUpdateRoutes);
 app.use("/attendance", attendanceRoutes);
 app.use("/leaves", leaveRoutes);
 app.use("/reports", reportRoutes);
+app.use("/upload", uploadRoutes);
 app.get("/", (_req, res) => {
   res.json({ status: "ok", version: "1.0.0" });
 });
@@ -116,3 +118,4 @@ server.listen(PORT, async () => {
 });
 
 export default app;
+// trigger nodemon restart

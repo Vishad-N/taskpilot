@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import api from "@/services/api";
+import FileUpload from "../ui/FileUpload";
+import AttachmentList from "../ui/AttachmentList";
 
 type AssignableUser = {
   _id: string;
@@ -24,6 +26,8 @@ export default function CreateTaskModal({
   const [team,setTeam] = useState<AssignableUser[]>([]);
   const [assigneeDraft,setAssigneeDraft] = useState("");
   const [assignedToIds,setAssignedToIds] = useState<string[]>([]);
+  
+  const [attachments, setAttachments] = useState<any[]>([]);
 
   useEffect(()=>{
 
@@ -37,7 +41,8 @@ export default function CreateTaskModal({
     await api.post("/tasks/create",{
       title,
       description,
-      assignedToIds
+      assignedToIds,
+      attachments
     });
 
     setOpen(false);
@@ -45,6 +50,7 @@ export default function CreateTaskModal({
     setDescription("");
     setAssigneeDraft("");
     setAssignedToIds([]);
+    setAttachments([]);
 
     refresh();
 
@@ -125,6 +131,12 @@ export default function CreateTaskModal({
                 ))}
               </div>
             )}
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2 text-slate-700">Attachments</label>
+              <FileUpload onUploadComplete={(file) => setAttachments(prev => [...prev, file])} />
+              <AttachmentList attachments={attachments} />
+            </div>
 
             <div className="flex gap-3">
 

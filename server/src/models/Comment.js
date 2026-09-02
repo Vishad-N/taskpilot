@@ -22,7 +22,28 @@ const commentSchema = new mongoose.Schema(
     isInternal: {
       type: Boolean,
       default: true
-    }
+    },
+
+    attachments: [
+      {
+        key: {
+          type: String, // Cloudflare R2 object key
+          required: true
+        },
+        filename: {
+          type: String,
+          required: true
+        },
+        fileType: {
+          type: String,
+          required: true
+        },
+        size: {
+          type: Number, // File size in bytes
+          required: true
+        }
+      }
+    ]
   },
   { timestamps: true }
 );

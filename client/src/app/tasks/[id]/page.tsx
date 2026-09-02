@@ -31,6 +31,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useMe } from "@/hooks/useMe";
 import SoftLoader from "@/components/ui/SoftLoader";
 import { useToast } from "@/components/ui/ToastProvider";
+import FileUpload from "@/components/ui/FileUpload";
+import AttachmentList from "@/components/ui/AttachmentList";
 
 type Task = {
   _id: string;
@@ -49,6 +51,7 @@ type Task = {
   createdBy?: { _id: string; name: string; email: string };
   clientVisible?: boolean;
   meetingNotes?: MeetingNote[];
+  attachments?: Array<{ key: string; filename: string; fileType: string; size: number }>;
 };
 
 type MeetingNote = {
@@ -65,6 +68,7 @@ type Comment = {
   isInternal: boolean;
   createdAt: string;
   userId?: { _id: string; name: string; email: string; role: string };
+  attachments?: Array<{ key: string; filename: string; fileType: string; size: number }>;
 };
 
 type DailyUpdate = {
@@ -222,6 +226,7 @@ export default function TaskDetailsPage() {
   const [subtasks, setSubtasks] = useState<Task[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [commentAttachments, setCommentAttachments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
@@ -264,6 +269,18 @@ export default function TaskDetailsPage() {
   const [dailyUpdates, setDailyUpdates] = useState<DailyUpdate[]>([]);
   const [newDailyUpdateContent, setNewDailyUpdateContent] = useState("");
   const [submittingDailyUpdate, setSubmittingDailyUpdate] = useState(false);
+  
+  const handleTaskAttachment = async (file: any) => {
+    if (!task) return;
+    try {
+      const updatedAttachments = [...(task.attachments || []), file];
+      await api.patch(`/tasks/${task._id}`, { attachments: updatedAttachments });
+      setTask({ ...task, attachments: updatedAttachments });
+      showToast({ title: "Attachment added", description: "File successfully attached to task.", variant: "success" });
+    } catch (err: any) {
+      showToast({ title: "Failed to attach", description: "Could not save attachment to task.", variant: "error" });
+    }
+  };
 
   const fetchTaskData = useCallback(async () => {
     try {
@@ -421,15 +438,17 @@ export default function TaskDetailsPage() {
   }, [id]);
 
   const addComment = async (isInternal: boolean = false) => {
-    if (!newComment.trim()) return;
+    if (!newComment.trim() && commentAttachments.length === 0) return;
     const commentText = newComment;
     try {
       await api.post("/comments/add", {
         taskId: id,
         content: newComment,
-        isInternal
+        isInternal,
+        attachments: commentAttachments
       });
       setNewComment("");
+      setCommentAttachments([]);
       const c = await api.get(`/comments/task/${id}`);
       setComments(c.data.comments ?? []);
       showToast({
@@ -936,6 +955,18 @@ export default function TaskDetailsPage() {
                     </p>
                   </div>
                 )}
+                
+                <div className="mt-8 pt-8 border-t border-white/5">
+                  <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.4em] mb-4">Attachments & References</h3>
+                  {task.attachments && task.attachments.length > 0 && (
+                    <div className="mb-4">
+                      <AttachmentList attachments={task.attachments} />
+                    </div>
+                  )}
+                  {canTrackWork(user?.role) && (
+                    <FileUpload onUploadComplete={handleTaskAttachment} />
+                  )}
+                </div>
               </div>
 
               <div className="absolute top-0 right-0 p-10 opacity-5 grayscale group-hover:opacity-10 transition-opacity">
@@ -1274,6 +1305,11 @@ export default function TaskDetailsPage() {
                         <div className="text-sm text-gray-400 font-bold uppercase tracking-wider leading-relaxed">
                           {comment.content}
                         </div>
+                        {comment.attachments && comment.attachments.length > 0 && (
+                          <div className="mt-4">
+                            <AttachmentList attachments={comment.attachments} />
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   ))}
@@ -1294,6 +1330,14 @@ export default function TaskDetailsPage() {
                     placeholder="DEPLOY MESSAGE PACKET..."
                     className="w-full bg-transparent px-6 py-4 outline-none text-xs font-black text-white min-h-[120px] resize-none uppercase tracking-widest placeholder:opacity-30"
                   />
+                  {commentAttachments.length > 0 && (
+                    <div className="px-6 mb-4">
+                      <AttachmentList attachments={commentAttachments} />
+                    </div>
+                  )}
+                  <div className="px-6 mb-4">
+                    <FileUpload onUploadComplete={(file) => setCommentAttachments(prev => [...prev, file])} />
+                  </div>
                   <div className="flex flex-col sm:flex-row justify-between items-center p-3 gap-4 border-t border-white/5 mt-2">
                     <p className="text-[9px] text-gray-600 font-black uppercase tracking-widest ml-4">Terminal active / Secure channel</p>
                     <div className="flex gap-4 w-full sm:w-auto">
