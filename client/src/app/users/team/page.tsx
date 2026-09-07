@@ -39,8 +39,11 @@ const statusColors: Record<string, string> = {
   blocked: "bg-red-500",
 };
 
-const formatStatusLabel = (s: string) =>
-  s === "inprogress" ? "In Progress" : s.charAt(0).toUpperCase() + s.slice(1);
+const formatStatusLabel = (s: string) => {
+  if (s === "inprogress") return "In Progress";
+  if (s === "blocked") return "Rejected";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (

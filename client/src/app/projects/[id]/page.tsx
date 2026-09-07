@@ -369,7 +369,7 @@ export default function ProjectWorkspacePage() {
                   <div className="flex justify-between items-start mb-6 relative z-10">
                     <div className="flex items-center gap-2">
                        <div className={`w-2 h-2 rounded-full ${statusColors[task.status] || 'bg-gray-500'} glow-border`} />
-                       <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{task.status}</span>
+                       <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{task.status === "blocked" ? "rejected" : task.status}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[9px] font-black px-2.5 py-1 rounded-lg bg-white/5 text-indigo-400 border border-white/5 uppercase tracking-tighter">{task.priority || "Normal"}</span>

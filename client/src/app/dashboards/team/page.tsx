@@ -52,6 +52,7 @@ const statusColors: Record<Task["status"], string> = {
 
 const formatStatusLabel = (status: Task["status"]) => {
   if (status === "inprogress") return "In Progress";
+  if (status === "blocked") return "Rejected";
   return status.charAt(0).toUpperCase() + status.slice(1);
 };
 

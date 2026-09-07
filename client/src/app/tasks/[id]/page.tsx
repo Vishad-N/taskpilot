@@ -1483,7 +1483,7 @@ export default function TaskDetailsPage() {
                     >
                       <div className="flex items-center gap-4">
                         <div className={`w-2 h-2 rounded-full ${statusColors[status] || "bg-gray-500"} ${task.status === status ? "animate-pulse shadow-[0_0_10px_currentColor]" : "opacity-40"}`} />
-                        {status}
+                        {status === "blocked" ? "rejected" : status}
                       </div>
                       {task.status === status && <ArrowRight size={14} className="animate-bounce-x" />}
                     </button>

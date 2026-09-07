@@ -77,7 +77,7 @@ const statusColors: Record<string, string> = {
 };
 
 const canCreateTasks = (role?: string) => role === "admin" || role === "superadmin" || role === "team";
-const formatStatusLabel = (status: string) => status === "inprogress" ? "In Progress" : `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
+const formatStatusLabel = (status: string) => status === "inprogress" ? "In Progress" : status === "blocked" ? "Rejected" : `${status.charAt(0).toUpperCase()}${status.slice(1)}`;
 
 export default function TasksPage() {
   const router = useRouter();
