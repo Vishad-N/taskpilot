@@ -83,6 +83,7 @@ export default function TasksPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useMe();
+  const isAdminOrSuperadmin = user?.role === "admin" || user?.role === "superadmin";
   const { showToast, dismissToast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [status, setStatus] = useState<(typeof statuses)[number]>("all");
@@ -644,6 +645,14 @@ export default function TasksPage() {
                       transition={{ duration: 0.3 }}
                       className="glass-card rounded-3xl p-5 hover:border-emerald-500/30 transition-all duration-300 group cursor-pointer relative"
                     >
+                      {isAdminOrSuperadmin && (
+                        <div className="absolute left-1/2 -top-12 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none px-3 py-2 bg-black/95 backdrop-blur-md border border-emerald-500/30 rounded-xl whitespace-nowrap text-xs font-bold text-gray-200 shadow-2xl shadow-emerald-500/10">
+                          <span className="text-gray-500 mr-2 text-[10px] uppercase tracking-widest">Assigned</span>
+                          {task.assignedToUsers && task.assignedToUsers.length > 0
+                            ? task.assignedToUsers.map((u) => u.name).join(", ")
+                            : (task.assignedTo?.name ?? "Unassigned")}
+                        </div>
+                      )}
                       <div className="flex items-start justify-between gap-3 mb-4">
                         <div className="min-w-0 flex-1">
                           <p className="text-[13px] font-bold text-gray-200 group-hover:text-emerald-400 transition-colors leading-snug block mb-2">
@@ -800,6 +809,14 @@ export default function TasksPage() {
                 onClick={() => router.push(`/tasks/${task._id}`)}
                 className="glass-card rounded-[1.8rem] p-6 hover:border-emerald-500/30 transition-all duration-300 group cursor-pointer relative flex flex-col h-full"
               >
+                {isAdminOrSuperadmin && (
+                  <div className="absolute left-1/2 -top-12 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none px-3 py-2 bg-black/95 backdrop-blur-md border border-emerald-500/30 rounded-xl whitespace-nowrap text-xs font-bold text-gray-200 shadow-2xl shadow-emerald-500/10">
+                    <span className="text-gray-500 mr-2 text-[10px] uppercase tracking-widest">Assigned</span>
+                    {task.assignedToUsers && task.assignedToUsers.length > 0
+                      ? task.assignedToUsers.map((u) => u.name).join(", ")
+                      : (task.assignedTo?.name ?? "Unassigned")}
+                  </div>
+                )}
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-black text-gray-200 group-hover:text-emerald-400 transition-colors uppercase tracking-tight line-clamp-1 block">
