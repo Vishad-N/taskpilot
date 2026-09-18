@@ -27,6 +27,7 @@ type Task = {
   startDate?: string;
   endDate?: string;
   deadlineDate?: string;
+  createdAt?: string;
   projectId?: { _id: string; name: string } | string;
   parentTaskId?: { _id: string; title: string } | null;
   assignedTo?: { _id: string; name: string } | null;
@@ -646,11 +647,27 @@ export default function TasksPage() {
                       className="glass-card rounded-3xl p-5 hover:border-emerald-500/30 transition-all duration-300 group cursor-pointer relative"
                     >
                       {isAdminOrSuperadmin && (
-                        <div className="absolute left-1/2 -top-12 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none px-3 py-2 bg-black/95 backdrop-blur-md border border-emerald-500/30 rounded-xl whitespace-nowrap text-xs font-bold text-gray-200 shadow-2xl shadow-emerald-500/10">
-                          <span className="text-gray-500 mr-2 text-[10px] uppercase tracking-widest">Assigned</span>
-                          {task.assignedToUsers && task.assignedToUsers.length > 0
-                            ? task.assignedToUsers.map((u) => u.name).join(", ")
-                            : (task.assignedTo?.name ?? "Unassigned")}
+                        <div className="absolute left-1/2 -top-20 -translate-x-1/2 z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none px-4 py-3 bg-black/95 backdrop-blur-md border border-emerald-500/30 rounded-xl whitespace-nowrap text-xs font-bold text-gray-200 shadow-2xl shadow-emerald-500/10 flex flex-col gap-1.5">
+                          <div className="flex justify-between gap-4">
+                            <span className="text-gray-500 text-[10px] uppercase tracking-widest">Assigned</span>
+                            <span>
+                              {task.assignedToUsers && task.assignedToUsers.length > 0
+                                ? task.assignedToUsers.map((u) => u.name).join(", ")
+                                : (task.assignedTo?.name ?? "Unassigned")}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-gray-500 text-[10px] uppercase tracking-widest">Assigned At</span>
+                            <span>
+                              {task.createdAt ? new Date(task.createdAt).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : "N/A"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between gap-4">
+                            <span className="text-gray-500 text-[10px] uppercase tracking-widest">Deadline</span>
+                            <span>
+                              {task.deadlineDate ? new Date(task.deadlineDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : (task.dueDate ? new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : "No Deadline")}
+                            </span>
+                          </div>
                         </div>
                       )}
                       <div className="flex items-start justify-between gap-3 mb-4">
