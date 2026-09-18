@@ -260,7 +260,9 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
     ...(user?.role === "admin" || user?.role === "superadmin"
       ? [{ name: "Projects", href: "/projects", icon: Briefcase }]
       : []),
-    { name: "Team Tasks", href: "/tasks", icon: CheckSquare },
+    ...(user?.role === "admin" || user?.role === "superadmin"
+      ? [{ name: "Team Tasks", href: "/tasks", icon: CheckSquare }]
+      : []),
     ...(user?.role === "team"
       ? [{ name: "My Tasks", href: "/my-tasks", icon: CheckSquare }]
       : []),

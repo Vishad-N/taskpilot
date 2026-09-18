@@ -806,13 +806,23 @@ export default function TaskDetailsPage() {
     ? getElapsedTodayMinutes(workSummary.activeSession.startedAt, liveNow)
     : 0;
 
+  const canManagePhase = useMemo(() => {
+    const isCreator = task?.createdBy && (task.createdBy._id || task.createdBy) === user?._id;
+    const assignedIds = [
+      ...(task?.assignedTo ? [task.assignedTo._id] : []),
+      ...((task?.assignedToUsers ?? []).map((u) => u._id))
+    ];
+    const isAssigned = user && assignedIds.includes(user._id);
+    return user?.role === "admin" || user?.role === "superadmin" || isCreator || isAssigned;
+  }, [user, task]);
+
   const sectionTabs = useMemo(() => {
     const tabs: SectionTab[] = [
       { id: "subtasks", label: "Sub-tasks" },
       { id: "comments", label: "Comments" }
     ];
 
-    if (canManageTaskDetails(user?.role)) {
+    if (canManagePhase) {
       tabs.push({ id: "phase-control", label: "Phase Control" });
     }
 
@@ -825,7 +835,7 @@ export default function TaskDetailsPage() {
     tabs.push({ id: "meeting-status", label: "Meeting Status" });
 
     return tabs;
-  }, [user?.role]);
+  }, [user?.role, canManagePhase]);
 
   const meetingNotes = useMemo(() => {
     return (task?.meetingNotes ?? [])
@@ -1464,7 +1474,7 @@ export default function TaskDetailsPage() {
           </div>
 
           <div className="space-y-8">
-            {canManageTaskDetails(user?.role) && activeSection === "phase-control" && (
+            {canManagePhase && activeSection === "phase-control" && (
               <motion.div
                 variants={item}
                 className="glass-card rounded-[2.5rem] p-8 border border-white/5"

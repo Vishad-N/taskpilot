@@ -298,6 +298,7 @@ export default function TasksPage() {
   const canMoveTask = (task: Task) => {
     if (!user) return false;
     if (user.role === "admin" || user.role === "superadmin") return true;
+    if (task.createdBy && (task.createdBy._id || task.createdBy) === user._id) return true;
     const assignedIds = [
       ...(task.assignedTo ? [task.assignedTo._id] : []),
       ...((task.assignedToUsers ?? []).map((u) => u._id))

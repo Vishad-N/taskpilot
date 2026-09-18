@@ -776,9 +776,10 @@ export const updateTaskStatus = async (req, res) => {
       ...((task.assignedToUsers || []).map((u) => String(u?._id || u)))
     ];
     const isAssigned = assignedIds.includes(String(req.user._id));
+    const isCreator = task.createdBy && String(task.createdBy._id || task.createdBy) === String(req.user._id);
 
-    if (!isAdmin && !isAssigned) {
-      return res.status(403).json({ message: "Only the assigned user or an admin can move this task." });
+    if (!isAdmin && !isAssigned && !isCreator) {
+      return res.status(403).json({ message: "Only the assigned user, creator, or an admin can move this task." });
     }
 
     const oldStatus = task.status;
