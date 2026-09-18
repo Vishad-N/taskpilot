@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import api from "@/services/api";
 import { useMe } from "@/hooks/useMe";
-import { CheckSquare, Clock, ArrowRight } from "lucide-react";
+import { CheckSquare, Clock, ArrowRight, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import SoftLoader from "@/components/ui/SoftLoader";
@@ -40,6 +40,9 @@ const formatStatusLabel = (s: string) => {
   if (s === "blocked") return "Rejected";
   return s.charAt(0).toUpperCase() + s.slice(1);
 };
+
+const canCreateTasks = (role?: string) => role === "admin" || role === "superadmin" || role === "team";
+
 
 const getErrorMessage = (error: unknown) => {
   if (
@@ -191,6 +194,16 @@ export default function MyTasksPage() {
             <p className="text-2xl font-black text-emerald-400">{completedCount}</p>
             <p className="text-[9px] text-gray-500 uppercase tracking-widest font-bold mt-0.5">Done</p>
           </div>
+
+          {canCreateTasks(user?.role) && (
+            <button
+              onClick={() => router.push("/tasks?create=true")}
+              className="flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-emerald-600 px-6 py-3 text-xs font-black uppercase tracking-widest text-white transition shadow-lg shadow-emerald-600/20 hover:bg-emerald-500"
+            >
+              <Plus size={18} />
+              New Task
+            </button>
+          )}
         </motion.div>
       </div>
 
